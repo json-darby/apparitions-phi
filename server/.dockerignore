@@ -1,0 +1,15 @@
+# Only package.json, package-lock.json and src/ go into the image.
+node_modules
+work
+test
+.env
+.env.*
+*.local
+*.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+README.md
+DEPLOY-CLOUD-RUN.md
+tsconfig.json

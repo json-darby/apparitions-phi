@@ -1,0 +1,36 @@
+/* Sound layer, audio mode: the playing chip, the record sheet's level meter,
+   review countdown and pitch comparison. Near-black, hairlines, one accent. */
+
+.cap-chip {
+  display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px;
+  background: rgba(12, 12, 12, 0.94); border: 1px solid var(--rule-strong); border-radius: 999px;
+  animation: fadeIn 0.2s var(--ease); backdrop-filter: blur(8px);
+}
+.caption-layer.audio { display: flex; justify-content: center; }
+.caption-layer.audio.with-sub { display: block; }
+.cap-chip .wave { display: flex; gap: 3px; align-items: center; height: 20px; flex: none; }
+.cap-chip .wave i { width: 3px; background: var(--fg); border-radius: 2px; animation: wave 0.9s ease-in-out infinite; }
+.cap-chip.loading .wave i { animation-duration: 1.8s; opacity: 0.5; }
+
+.rec-ring {
+  width: 96px; height: 96px; border-radius: 50%; margin: 18px auto 10px; display: grid; place-items: center;
+  background: var(--fg); color: #050505; border: 0; position: relative; cursor: pointer;
+}
+.rec-ring .halo {
+  position: absolute; inset: -8px; border-radius: 50%; border: 2px solid var(--blue);
+  transform: scale(var(--lv, 1)); transition: transform 60ms linear; opacity: 0.85; pointer-events: none;
+}
+.rec-ring.idle { background: transparent; color: var(--fg); border: 1px solid var(--rule-strong); }
+.rec-level { height: 3px; background: var(--rule); margin: 4px auto 14px; width: min(220px, 70%); overflow: hidden; border-radius: 2px; }
+.rec-level > i { display: block; height: 100%; width: 100%; background: var(--blue); transform-origin: left center; transform: scaleX(0); transition: transform 60ms linear; }
+
+.rec-review { text-align: left; margin: 14px 0 10px; }
+.rec-review .big { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.rec-auto { height: 2px; background: var(--rule); margin: 12px 0 14px; overflow: hidden; }
+.rec-auto > i { display: block; height: 100%; background: var(--fg); animation: capbar linear forwards; }
+
+.rec-problem { border: 1px solid var(--rule-strong); border-radius: 8px; padding: 12px 14px; margin: 14px 0; text-align: left; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cap-chip .wave i { animation: none; height: 12px; }
+}

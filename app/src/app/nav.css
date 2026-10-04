@@ -1,0 +1,22 @@
+/* Phone and tablet tab bar: fixed to the bottom, above the home indicator.
+   Four equal tabs that never change size. */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background: rgba(5, 5, 5, 0.94);
+  border-top: 1px solid var(--rule);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.tabbar .tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-width: 0; height: 60px; text-decoration: none; color: var(--fg-3, #8a8a8a);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar .tab span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tabbar .tab[aria-current='page'] { color: var(--fg); }
+.tabbar .tab:active { opacity: 0.7; }
+/* the screens above keep clear of it */
+.has-tabs .main { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }

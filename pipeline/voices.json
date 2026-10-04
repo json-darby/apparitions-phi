@@ -1,0 +1,35 @@
+{
+ "cast": {
+  "nok": "th-TH-Chirp3-HD-Achernar",
+  "ton": "th-TH-Chirp3-HD-Orus",
+  "ploy": "th-TH-Chirp3-HD-Autonoe",
+  "lek": "th-TH-Chirp3-HD-Puck",
+  "mai": "th-TH-Chirp3-HD-Kore",
+  "bank": "th-TH-Chirp3-HD-Umbriel",
+  "fah": "th-TH-Chirp3-HD-Laomedeia",
+  "pim": "th-TH-Chirp3-HD-Aoede"
+ },
+ "source": {
+  "nok": "owner",
+  "ton": "owner",
+  "ploy": "owner",
+  "lek": "owner",
+  "mai": "owner",
+  "bank": "owner",
+  "fah": "owner",
+  "pim": "owner",
+  "f1": "owner",
+  "f2": "owner",
+  "x1": "owner",
+  "m1": "owner",
+  "m2": "owner",
+  "x2": "owner"
+ },
+ "pickedAt": "2026-10-04T00:00:03",
+ "f1": "th-TH-Chirp3-HD-Vindemiatrix",
+ "f2": "th-TH-Chirp3-HD-Callirrhoe",
+ "x1": "th-TH-Chirp3-HD-Pulcherrima",
+ "m1": "th-TH-Chirp3-HD-Iapetus",
+ "m2": "th-TH-Chirp3-HD-Zubenelgenubi",
+ "x2": "th-TH-Chirp3-HD-Enceladus"
+}

@@ -1,0 +1,430 @@
+{
+  "version": 1,
+  "credit": "Filler images for private testing, sourced online, to be replaced.",
+  "people": {
+    "bank": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 6607, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "bank/neutral.webp",
+          "depth": "bank/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "bank/smile.webp",
+          "depth": "bank/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.14865
+      }
+    },
+    "fah": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 7703, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "fah/neutral.webp",
+          "depth": "fah/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "fah/smile.webp",
+          "depth": "fah/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 1.97279
+      }
+    },
+    "lek": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 4409, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "lek/neutral.webp",
+          "depth": "lek/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "lek/smile.webp",
+          "depth": "lek/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.06193
+      }
+    },
+    "mai": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 5501, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "mai/neutral.webp",
+          "depth": "mai/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "mai/smile.webp",
+          "depth": "mai/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 1.97292
+      }
+    },
+    "nok": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 1101, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "nok/neutral.webp",
+          "depth": "nok/neutral.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.08087
+      }
+    },
+    "pim": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 8803, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "pim/neutral.webp",
+          "depth": "pim/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "pim/smile.webp",
+          "depth": "pim/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.07818
+      }
+    },
+    "ploy": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 3307, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "ploy/neutral.webp",
+          "depth": "ploy/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "ploy/smile.webp",
+          "depth": "ploy/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.07449
+      }
+    },
+    "ton": {
+      "credit": "Filler: AI-generated, Generated locally (pipeline/gen_cast.py), seed 2203, Model output: SSD-1B (Apache-2.0) + LCM-SSD-1B (CreativeML OpenRAIL++-M). To be replaced.",
+      "expressions": {
+        "neutral": {
+          "image": "ton/neutral.webp",
+          "depth": "ton/neutral.depth.webp"
+        },
+        "smile": {
+          "image": "ton/smile.webp",
+          "depth": "ton/smile.depth.webp"
+        }
+      },
+      "depth": {
+        "offset": 0.5,
+        "scale": 2.03559
+      }
+    }
+  },
+  "sequences": {},
+  "objects": {
+    "banknote": {
+      "image": "objects/coins.webp",
+      "depth": "objects/coins.depth.webp",
+      "credit": "Filler: unknown, CC0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.54187,
+        "scale": 0.19305
+      }
+    },
+    "bottle": {
+      "image": "objects/bottle.webp",
+      "depth": "objects/bottle.depth.webp",
+      "credit": "Filler: Lel4nd, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.59128,
+        "scale": 0.67387
+      }
+    },
+    "chilli": {
+      "image": "objects/chilli.webp",
+      "depth": "objects/chilli.depth.webp",
+      "credit": "Filler: Thai Food Blog, CC BY-NC-SA 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.57417,
+        "scale": 0.43317
+      }
+    },
+    "coins": {
+      "image": "objects/coins.webp",
+      "depth": "objects/coins.depth.webp",
+      "credit": "Filler: unknown, CC0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.54187,
+        "scale": 0.19305
+      }
+    },
+    "dish": {
+      "image": "objects/dish.webp",
+      "depth": "objects/dish.depth.webp",
+      "credit": "Filler: avlxyz, CC BY-SA 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.57744,
+        "scale": 0.71475
+      }
+    },
+    "garland": {
+      "image": "objects/garland.webp",
+      "depth": "objects/garland.depth.webp",
+      "credit": "Filler: Thai Jasmine (Smile..smile...Smile..), CC BY-NC 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.65356,
+        "scale": 0.52425
+      }
+    },
+    "ice": {
+      "image": "objects/ice.webp",
+      "depth": "objects/ice.depth.webp",
+      "credit": "Filler: Dominick Guzzo, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.64477,
+        "scale": 0.86516
+      }
+    },
+    "mango": {
+      "image": "objects/mango.webp",
+      "depth": "objects/mango.depth.webp",
+      "credit": "Filler: Debs (ò‿ó)♪, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.6517,
+        "scale": 0.77616
+      }
+    },
+    "noodles": {
+      "image": "objects/noodles.webp",
+      "depth": "objects/noodles.depth.webp",
+      "credit": "Filler: bubbletea1, CC BY-NC-SA 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.59164,
+        "scale": 1.00655
+      }
+    },
+    "padthai": {
+      "image": "objects/padthai.webp",
+      "depth": "objects/padthai.depth.webp",
+      "credit": "Filler: avlxyz, CC BY-SA 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.61642,
+        "scale": 0.71986
+      }
+    },
+    "somtam": {
+      "image": "objects/somtam.webp",
+      "depth": "objects/somtam.depth.webp",
+      "credit": "Filler: WordRidden, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.69725,
+        "scale": 0.70656
+      }
+    },
+    "spirithouse": {
+      "image": "objects/spirithouse.webp",
+      "depth": "objects/spirithouse.depth.webp",
+      "credit": "Filler: aimforawesome, CC BY-ND 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.57892,
+        "scale": 1.61289
+      }
+    },
+    "stall": {
+      "image": "objects/stall.webp",
+      "depth": "objects/stall.depth.webp",
+      "credit": "Filler: ashabot, CC BY-NC-SA 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.85924,
+        "scale": 1.56625
+      }
+    },
+    "temple": {
+      "image": "objects/temple.webp",
+      "depth": "objects/temple.depth.webp",
+      "credit": "Filler: max.pfandl, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.58201,
+        "scale": 1.33826
+      }
+    },
+    "thaitea": {
+      "image": "objects/thaitea.webp",
+      "depth": "objects/thaitea.depth.webp",
+      "credit": "Filler: snowpea&bokchoi, CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.54455,
+        "scale": 0.54513
+      }
+    },
+    "tuktuk": {
+      "image": "objects/tuktuk.webp",
+      "depth": "objects/tuktuk.depth.webp",
+      "credit": "Filler: shankar s., CC BY 2.0. To be replaced.",
+      "size": [
+        256,
+        256
+      ],
+      "depth_map": {
+        "offset": 0.71508,
+        "scale": 1.473
+      }
+    }
+  },
+  "scenes": {
+    "bar": {
+      "image": "scenes/bar.webp",
+      "depth": "scenes/bar.depth.webp",
+      "credit": "Filler: Sukanto Debnath, CC BY 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    },
+    "food": {
+      "image": "scenes/food.webp",
+      "depth": "scenes/food.depth.webp",
+      "credit": "Filler: ashabot, CC BY-NC-SA 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    },
+    "hotel": {
+      "image": "scenes/hotel.webp",
+      "depth": "scenes/hotel.depth.webp",
+      "credit": "Filler: Trey Ratcliff, CC BY-NC-SA 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    },
+    "market": {
+      "image": "scenes/market.webp",
+      "depth": "scenes/market.depth.webp",
+      "credit": "Filler: Anita Gilmore, CC BY-ND 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    },
+    "pharmacy": {
+      "image": "scenes/pharmacy.webp",
+      "depth": "scenes/pharmacy.depth.webp",
+      "credit": "Filler: Pat Guiney, CC BY 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    },
+    "taxi": {
+      "image": "scenes/taxi.webp",
+      "depth": "scenes/taxi.depth.webp",
+      "credit": "Filler: sobri, CC BY-NC-ND 2.0. To be replaced.",
+      "size": [
+        384,
+        240
+      ],
+      "depth_map": {
+        "offset": 0.4,
+        "scale": 1.25
+      }
+    }
+  },
+  "filler": true
+}

@@ -1,0 +1,45 @@
+/* Today's lesson. Built on global.css and shell.css; the example rows follow
+   the primer's word rows (hairline rules, the word large, play at the side). */
+
+.lesson { display: flex; flex-direction: column; gap: var(--s3); }
+.lesson > .h-l { margin-top: 2px; }
+.lesson-goal { margin: var(--s1) 0 0; font-size: 17px; line-height: 1.5; color: var(--fg); max-width: 52ch; }
+
+/* one section: heading, plain paragraphs, then its examples */
+.lesson-sec {
+  display: flex; flex-direction: column; gap: var(--s3);
+  margin-top: var(--s4); padding-top: var(--s5); border-top: 1px solid var(--rule);
+}
+.lesson-p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--fg-2); max-width: 60ch; }
+.lesson-p .thai { color: var(--fg); font-size: 1.1em; }
+
+.lesson-exs { list-style: none; margin: var(--s1) 0 0; padding: 0; display: flex; flex-direction: column; }
+.lesson-ex {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 10px 0;
+  background: none; border: 0; border-top: 1px solid var(--rule); color: inherit; text-align: left;
+}
+/* one row height for every example: the Thai line and two lines for romanisation and meaning */
+.lesson-ex { height: calc(20px + 26px * 1.3 + 2px + 2 * 14px * 1.4); }
+.device-tablet .lesson-ex, .device-desktop .lesson-ex { height: calc(20px + 28px * 1.3 + 2px + 2 * 14px * 1.4); }
+.lesson-ex-sub.fit .roman { font-size: inherit; }
+.lesson-exs li:last-child .lesson-ex { border-bottom: 1px solid var(--rule); }
+.lesson-ex:hover { color: #fff; }
+.lesson-ex:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.lesson-ex-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lesson-ex-thai { font-family: var(--thai); font-weight: 600; font-size: 26px; line-height: 1.3; overflow-wrap: anywhere; }
+.lesson-ex-sub { font-size: 14px; line-height: 1.4; color: var(--fg-2); overflow-wrap: anywhere; }
+.lesson-ex-sub .roman { font-size: 14px; }
+.lesson-ex-play {
+  flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--rule-strong); color: var(--fg-2);
+}
+.lesson-ex:hover .lesson-ex-play { border-color: var(--fg); color: var(--fg); }
+
+/* the way on: start today's words or go back, then the neighbouring lessons */
+.lesson-foot { margin-top: var(--s8); display: flex; flex-direction: column; gap: var(--s4); }
+.lesson-foot > a.pill { text-decoration: none; }
+.lesson-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lesson-nav .pill { width: 100%; }
+
+.device-tablet .lesson-ex-thai, .device-desktop .lesson-ex-thai { font-size: 28px; }
+.device-tablet .lesson-p, .device-desktop .lesson-p { font-size: 17px; }

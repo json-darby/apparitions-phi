@@ -1,0 +1,28 @@
+# dependencies and builds
+node_modules/
+dist/
+dev-dist/
+*.tsbuildinfo
+
+# secrets: never committed
+.env.local
+.env.*.local
+
+# local working data
+pipeline/.venv/
+pipeline/work/
+pipeline/*.stackdump
+server/work/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# working documents, not part of the app
+backups/
+plan/
+research/
+designs/
+animation-demos/
+
+# deploy cache
+.firebase/

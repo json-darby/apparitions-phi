@@ -1,0 +1,12 @@
+# What `gcloud run deploy --source server` uploads to Cloud Build: the
+# Dockerfile, package.json, package-lock.json and src/. Never .env files.
+.gcloudignore
+.git
+.gitignore
+node_modules/
+work/
+test/
+.env
+.env.*
+*.local
+*.log

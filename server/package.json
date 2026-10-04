@@ -1,0 +1,24 @@
+{
+  "name": "phi-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Phi's small local server: Gemini Live relay, speech-to-text proxy, usage ledger. Holds the credentials so the browser never does.",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "mock": "node src/main.ts --mock",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "google-auth-library": "^11.1.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2"
+  }
+}
