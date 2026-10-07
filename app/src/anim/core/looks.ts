@@ -45,6 +45,7 @@ export const LOOKS: Record<string, FaceLook> = {
   bank: { shape: [1.0, 1.08, 1.0, 0.9], age: [0.18, 1.0, 1.15, 1.08], hair: [HAIR.quiff, 1.0, 0.5, 0], acc: [COLLAR.open, HEADWEAR.none, 0.8, 1.0], rest: 0.3, tilt: 0.05 },
   // Fah: bar regular, late 20s, short bob, direct gaze, dry humour
   fah: { shape: [0.96, 0.9, 0.98, 0.92], age: [0.15, 0.0, 0.85, 0.95], hair: [HAIR.bob, 1.04, 0.5, 1], acc: [COLLAR.tee, HEADWEAR.none, 0.75, 1.05], rest: 0.0, tilt: -0.05 },
+  theo: { shape: [1.0, 1.04, 1.0, 0.92], age: [0.18, 1.0, 1.1, 1.06], hair: [HAIR.tied, 1.1, 0.45, 0], acc: [COLLAR.open, HEADWEAR.none, 0.75, 0.8], rest: 0.25, tilt: 0.03 },
   // Pim: guide and narrator, 30s, linen shirt, unhurried
   pim: { shape: [0.97, 0.94, 1.02, 0.95], age: [0.3, 0.05, 0.9, 1.0], hair: [HAIR.long, 1.0, 0.55, 0], acc: [COLLAR.linen, HEADWEAR.none, 0.95, 1.05], rest: 0.12, tilt: 0.03 },
   // you: a plain head, no features of anyone in particular

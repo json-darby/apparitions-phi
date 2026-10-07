@@ -1,16 +1,38 @@
-// Opening and set-up: a full-screen face, then four questions.
+// Opening and set-up: Pim gathering out of light, then four questions in the
+// step shell the primer shares (the primer is step 5 on a first run).
 
 import { useState } from 'react';
 import { useApp } from '../app/context';
+import { useDevice } from '../app/device';
 import { navigate } from '../app/router';
 import { Apparition } from '../anim/Apparition';
-import { addDays, localDate } from '../core/dates';
-import { Label, Seg } from '../ui/kit';
+import { addDays, daysBetween, localDate } from '../core/dates';
+import { Label, OptionCards } from '../ui/kit';
 import { FitText } from '../ui/FitText';
+import { StepShell } from '../ui/StepShell';
 import { useKeys } from '../input/keys';
+import '../ui/steps.css';
+
+/** Pim comes clearer with every answer. */
+const CLARITY = [0.6, 0.72, 0.86, 1];
+
+function fmt(date: string, weekday = false) {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { ...(weekday ? { weekday: 'short' } : {}), day: 'numeric', month: 'short' }).replace(',', '');
+}
+
+/** Pim's box in the art: the right of the band on a phone, the whole left half on a tablet (steps.css sizes it). */
+const FACE = { position: 'absolute', top: 0, right: 0, width: 'var(--face-w, 56%)', height: '100%' } as const;
+
+/** Words and phrases by the end of the course, from the daily quotas. */
+function wordsBy(courseDays: number, minutes: number) {
+  if (courseDays === 60) return minutes === 60 ? 620 : 350;
+  return minutes === 60 ? 360 : 170;
+}
 
 export default function Welcome() {
   const { settings, updateSettings, reducedMotion } = useApp();
+  const { device } = useDevice();
   const today = localDate(Date.now());
   const [step, setStep] = useState(0);
   const [identity, setIdentity] = useState(settings.identity);
@@ -19,105 +41,260 @@ export default function Welcome() {
   const [trip, setTrip] = useState(settings.tripDate ?? addDays(today, 30));
   const [noTrip, setNoTrip] = useState(false);
   const [adult, setAdult] = useState(settings.adult);
+  // the primer is the fifth step on a first run; set-up opened again from Settings is four
+  const total = settings.primerDone ? 4 : 5;
 
   const finish = () => {
     updateSettings({
       onboarded: true, identity, minutes, adult, courseDays,
       tripDate: noTrip ? null : trip,
-      startDate: settings.onboarded ? settings.startDate : today,
+      // set-up opened again from Settings (onboarded is false by then, the primer long done) keeps day 1 where it was
+      startDate: settings.onboarded || settings.primerDone ? settings.startDate : today,
     });
     // first run: the "How Thai works" primer comes before day 1
     navigate(settings.primerDone ? '/' : '/primer', true);
   };
   const next = () => (step < 4 ? setStep(step + 1) : finish());
+  const back = () => step > 0 && setStep(step - 1);
   useKeys((a) => {
     if (a.type === 'confirm') {
       next();
       return true;
     }
+    if (a.type === 'back' && step > 0) {
+      back();
+      return true;
+    }
   });
+
+  if (step === 0) {
+    const split = device !== 'phone';
+    return (
+      <div className={`welcome ${split ? 'split' : ''}`}>
+        {/* the face fills the space above the words (beside them on a tablet), never behind them */}
+        <div className="welcome-art">
+          <Apparition who="pim" mode={reducedMotion ? 'still' : 'gather'} colour="#E8E8E8" style={{ position: 'absolute', inset: 0 }} label="Pim, your guide, gathering out of light" />
+        </div>
+        <div className="welcome-body fade-in">
+          <Label>Apparitions · Thai, a little every day</Label>
+          <div className="welcome-name">
+            <h1>Phi</h1>
+            <span className="thai" lang="th">ผี</span>
+          </div>
+          <p className="body" style={{ margin: 0, maxWidth: '42ch' }}>
+            Thai from the street up. One street, eight people to talk to, a short session a day.
+          </p>
+          {/* tones in one word: the first thing you learn to hear */}
+          <div className="tone-hook" role="group" aria-label="One sound, two tones">
+            <div>
+              <svg width="34" height="24" viewBox="0 0 34 24" fill="none" stroke="var(--fg)" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M2 16 C 10 20, 18 18, 32 3" /></svg>
+              <span>
+                <b><span className="thai" lang="th">ผี</span> phǐi</b>
+                <span className="small">rising · spirit</span>
+              </span>
+            </div>
+            <div>
+              <svg width="34" height="24" viewBox="0 0 34 24" fill="none" stroke="var(--fg)" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M2 8 C 12 2, 20 6, 32 21" /></svg>
+              <span>
+                <b><span className="thai" lang="th">พี่</span> phîi</b>
+                <span className="small">falling · older sibling</span>
+              </span>
+            </div>
+          </div>
+          <div className="welcome-go">
+            <button type="button" className="pill solid big wide" onClick={next}>Begin</button>
+            <span className="small">{settings.primerDone ? 'Four questions' : 'Four questions, then five minutes on how Thai works'}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const start = settings.onboarded || settings.primerDone ? settings.startDate : today;
+  const courseEnd = addDays(start, courseDays - 1);
+  const words = wordsBy(courseDays, minutes);
 
   const questions = [
     {
-      label: 'Question 1 of 4',
       title: 'How do you speak?',
-      body: 'Thai changes a few words by the speaker. You will hear both forms; this sets the ones you say.',
+      body: 'Thai changes a few words by who is speaking. This sets the ones you say. You will hear both.',
       control: (
-        <Seg label="Speaking identity" value={identity} onChange={setIdentity} options={[{ v: 'm', label: 'Male forms' }, { v: 'f', label: 'Female forms' }]} />
-      ),
-      note: identity === 'm' ? 'You end polite sentences with ครับ khráp, and say ผม phǒm for I.' : 'You end polite sentences with ค่ะ khâ (คะ khá in questions), and say ฉัน chǎn for I.',
-    },
-    {
-      label: 'Question 2 of 4',
-      title: 'How long, and how far?',
-      body: 'Sixty minutes a day gets you about 360 words and phrases in 30 days; thirty gets you about 170. The 60-day course keeps going: about 620 words, every vowel and tone mark written, and running text. You can change both later.',
-      control: (
-        <div className="stack gap-3">
-          <Seg label="Daily minutes" value={minutes} onChange={setMinutes} options={[{ v: 60, label: '60 minutes' }, { v: 30, label: '30 minutes' }]} />
-          <Seg label="Course length" value={courseDays} onChange={setCourseDays} options={[{ v: 30, label: '30 days' }, { v: 60, label: '60 days' }]} />
-        </div>
-      ),
-    },
-    {
-      label: 'Question 3 of 4',
-      title: 'When do you fly?',
-      body: 'Nothing is scheduled past this date, and the words you need first are held stronger.',
-      control: (
-        <div className="stack gap-3" style={{ maxWidth: 320 }}>
-          <input type="date" value={trip} min={today} disabled={noTrip} onChange={(e) => setTrip(e.target.value)} aria-label="Trip date" />
-          <label className="hrow small">
-            <input type="checkbox" checked={noTrip} onChange={(e) => setNoTrip(e.target.checked)} /> No date yet
-          </label>
-        </div>
-      ),
-    },
-    {
-      label: 'Question 4 of 4',
-      title: 'Nightlife and 18+?',
-      body: 'Bar talk, dating and the cannabis-shop scene. Non-explicit and consent-forward, all characters adults. Off keeps those scenes and words out.',
-      control: <Seg label="18+ content" value={adult ? 'on' : 'off'} onChange={(v) => setAdult(v === 'on')} options={[{ v: 'off', label: 'Off' }, { v: 'on', label: 'On' }]} />,
-    },
-  ];
-
-  return (
-    <div className="screen" style={{ minHeight: '100dvh' }}>
-      {step === 0 ? (
-        <div className="stack" style={{ flex: 1, position: 'relative' }}>
-          {/* the face fills the space above the words, never behind them */}
-          <Apparition who="pim" mode={reducedMotion ? 'still' : 'gather'} colour="#E8E8E8" style={{ flex: '1 1 auto', minHeight: '38dvh', marginTop: 'env(safe-area-inset-top)' }} label="Pim, your guide, drawn in light" />
-          <div className="stack gap-4 over-art" style={{ padding: '8px var(--gutter) calc(40px + env(safe-area-inset-bottom))', position: 'relative', maxWidth: 640 }}>
-            <Label>Thai · a little every day</Label>
-            <FitText as="h1" className="h-xl" min={26} style={{ fontSize: 'clamp(34px, 11vw, 96px)' }}>APPARITIONS: PHI</FitText>
-            <p className="body" style={{ maxWidth: '42ch', margin: 0 }}>
-              Thai from the street up. One street, eight people to talk to, a short session a day. Four questions first.
-            </p>
-            <p className="small" style={{ maxWidth: '44ch', margin: 0 }}>
-              <span lang="th">ผี</span> <i>phǐi</i>, rising tone, is a spirit. Say it falling, <span lang="th">พี่</span> <i>phîi</i>, and it is an
-              older brother or sister. That is tones in one word, and the first thing you will learn to hear.
-            </p>
+        <>
+          <OptionCards
+            label="Speaking identity"
+            value={identity}
+            onChange={setIdentity}
+            options={[
+              { v: 'm', title: 'Male forms', sub: <>End polite sentences with <span className="thai fg2" lang="th">ครับ</span> khráp</> },
+              { v: 'f', title: 'Female forms', sub: <>End polite sentences with <span className="thai fg2" lang="th">ค่ะ</span> khâ</> },
+            ]}
+          />
+          <div className="step-facts">
             <div>
-              <button className="pill solid big" onClick={next}>Begin</button>
+              <Label>You say “I”</Label>
+              <span style={{ fontSize: 15 }}>
+                <span className="thai" lang="th" style={{ fontSize: 20 }}>{identity === 'm' ? 'ผม' : 'ฉัน'}</span> {identity === 'm' ? 'phǒm' : 'chǎn'}
+              </span>
+            </div>
+            <div>
+              <Label>Change later</Label>
+              <span style={{ fontSize: 15, color: 'var(--fg-2)' }}>Settings · You</span>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="stack gap-6 fade-in" key={step} style={{ flex: 1, padding: 'calc(28px + env(safe-area-inset-top)) var(--gutter) calc(32px + env(safe-area-inset-bottom))', maxWidth: 680, width: '100%', margin: '0 auto' }}>
-          <div className="hrow between">
-            <span className="logo">APPARITIONS: PHI</span>
-            <Label>{questions[step - 1].label}</Label>
+        </>
+      ),
+    },
+    {
+      title: 'How long, and how far?',
+      body: 'Both change later. Progress stays when you do.',
+      control: (
+        <>
+          <div className="stack gap-2">
+            <Label>Each day</Label>
+            <OptionCards
+              big
+              label="Daily minutes"
+              value={minutes}
+              onChange={setMinutes}
+              options={[
+                { v: 60, title: <>60<small> min</small></>, sub: `About ${courseDays === 60 ? 620 : 360} words` },
+                { v: 30, title: <>30<small> min</small></>, sub: `About ${courseDays === 60 ? 350 : 170} words` },
+              ]}
+            />
           </div>
-          <div className="meter"><i style={{ width: `${(step / 4) * 100}%` }} /></div>
-          {/* the same boxes for all four questions, sized for the longest: Next and Back never move */}
-          <FitText as="h1" className="h-l" lines={2} min={22} valign="top" style={{ marginTop: 24 }}>{questions[step - 1].title}</FitText>
-          <p className="body" style={{ margin: 0, maxWidth: '48ch', minHeight: 'calc(6 * 1.4em)' }}>{questions[step - 1].body}</p>
-          <div style={{ minHeight: 100 }}>{questions[step - 1].control}</div>
-          <FitText as="p" className="small" lines={2} min={10} valign="top">{questions[step - 1].note ?? ''}</FitText>
-          <div className="hrow" style={{ marginTop: 'auto', paddingTop: 24 }}>
-            <button className="pill" onClick={() => setStep(step - 1)}>Back</button>
-            <button className="pill solid grow" onClick={next}>{step === 4 ? 'Start day 1' : 'Next'}</button>
+          <div className="stack gap-2">
+            <Label>Course</Label>
+            <OptionCards
+              big
+              label="Course length"
+              value={courseDays}
+              onChange={setCourseDays}
+              options={[
+                { v: 30, title: <>30<small> days</small></>, sub: 'Speak and get by' },
+                { v: 60, title: <>60<small> days</small></>, sub: 'About 620, and reading' },
+              ]}
+            />
           </div>
+          <div className="step-total">
+            <span className="small">By day {courseDays}</span>
+            <b>≈ {words} words and phrases</b>
+          </div>
+        </>
+      ),
+    },
+    {
+      title: 'When do you fly?',
+      body: 'Nothing is scheduled past this date, and the words you need first are held stronger.',
+      control: <TripPicker today={today} trip={trip} setTrip={setTrip} noTrip={noTrip} setNoTrip={setNoTrip} courseEnd={courseEnd} courseDays={courseDays} start={start} wide={device !== 'phone'} />,
+    },
+    {
+      title: 'Nightlife and 18+?',
+      body: 'Bar talk, dating and the cannabis-shop scene. Non-explicit and consent-forward. Every character is an adult.',
+      control: (
+        <>
+          <OptionCards
+            label="18+ content"
+            value={adult ? 'on' : 'off'}
+            onChange={(v) => setAdult(v === 'on')}
+            options={[
+              { v: 'off', title: 'Off', sub: 'Those scenes and words stay out' },
+              { v: 'on', title: 'On', sub: 'Adds After Hours, with Fah and Bank', glow: 'var(--pink)' },
+            ]}
+          />
+          <p className="small step-note">Change it any time in Settings, under Content.</p>
+        </>
+      ),
+    },
+  ];
+  const q = questions[step - 1];
+
+  return (
+    <StepShell
+      step={`Step ${step} of ${total}`}
+      rail={{ n: total, at: step, plain: true, label: `Step ${step} of ${total}` }}
+      art={<Apparition who="pim" mode={reducedMotion ? 'still' : 'idle'} colour="#E8E8E8" clarity={CLARITY[step - 1]} style={FACE} label="Pim, your guide" />}
+      artCaption={
+        <>
+          <Label>Pim · your guide</Label>
+          <span className="small">Clearer with every answer</span>
+        </>
+      }
+      foot={
+        <div className="steps-btns">
+          <button type="button" className="pill big" onClick={back}>Back</button>
+          <button type="button" className="pill solid big" onClick={next}>
+            {step < 4 ? 'Next' : settings.primerDone ? 'Done' : 'On to how Thai works'}
+          </button>
         </div>
-      )}
-    </div>
+      }
+    >
+      <div key={step} className="stack fade-in" style={{ gap: 'inherit' }}>
+        {/* the same title box on every question: the words below never jump */}
+        <FitText as="h1" className="h-l steps-title" lines={2} min={22} valign="top">{q.title}</FitText>
+        <p className="body">{q.body}</p>
+        {q.control}
+      </div>
+    </StepShell>
+  );
+}
+
+function TripPicker({
+  today, trip, setTrip, noTrip, setNoTrip, courseEnd, courseDays, start, wide,
+}: { today: string; trip: string; setTrip: (d: string) => void; noTrip: boolean; setNoTrip: (v: boolean) => void; courseEnd: string; courseDays: number; start: string; wide: boolean }) {
+  // Today, the course's last day and the flight on one line, to scale
+  const last = noTrip ? courseEnd : trip > courseEnd ? trip : courseEnd;
+  const span = Math.max(1, daysBetween(today, last));
+  const at = (d: string) => `${Math.max(0, Math.min(1, daysBetween(today, d) / span)) * 100}%`;
+  const spare = daysBetween(courseEnd, trip);
+  const marks = [
+    { k: 'today', d: today, text: `Today · ${fmt(today)}` },
+    { k: 'end', d: courseEnd, text: `Day ${courseDays} · ${fmt(courseEnd)}` },
+    ...(noTrip ? [] : [{ k: 'fly', d: trip, text: wide ? `Fly · ${fmt(trip)}` : 'Fly' }]),
+  ].sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : a.k === 'fly' ? 1 : -1));
+  const flyDay = daysBetween(start, trip) + 1;
+  const note = noTrip
+    ? `Readiness measures against day ${courseDays} until you set a date.`
+    : spare > 0
+      ? `${courseDays} days of course, ${spare === 1 ? 'one' : spare} spare. You land knowing it.`
+      : spare === 0
+        ? `You fly on day ${courseDays}, the course’s last day.`
+        : `You fly on day ${Math.max(1, flyDay)}, before the course ends. The words you need first come first.`;
+  return (
+    <>
+      <label className="date-field">
+        <span className="label">Trip date</span>
+        <span className={`date-box ${noTrip ? 'off' : ''}`}>
+          <span className="v">{fmt(trip, true)}</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--fg-2)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
+          <input
+            type="date"
+            value={trip}
+            min={today}
+            disabled={noTrip}
+            aria-label="Trip date"
+            onChange={(e) => e.target.value && setTrip(e.target.value)}
+            onClick={(e) => {
+              try {
+                e.currentTarget.showPicker?.();
+              } catch {
+                // a browser without showPicker opens its own picker
+              }
+            }}
+          />
+        </span>
+      </label>
+      <div className="trip-line" aria-hidden="true">
+        <div className="trip-track">
+          {marks.map((m) => <i key={m.k} className={m.k} style={{ left: `calc(6px + (100% - 12px) * ${parseFloat(at(m.d)) / 100})` }} />)}
+        </div>
+        <div className="trip-labels">
+          {marks.map((m) => <span key={m.k} className={m.k}>{m.text}</span>)}
+        </div>
+      </div>
+      <p className="small" style={{ margin: 0 }}>{note}</p>
+      <label className="check-line">
+        <input type="checkbox" checked={noTrip} onChange={(e) => setNoTrip(e.target.checked)} /> No date yet
+      </label>
+    </>
   );
 }

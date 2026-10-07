@@ -1,0 +1,81 @@
+/* Today. Built on global.css and shell.css. */
+
+.today .today-stage { position: relative; }
+.today-hero { position: relative; min-height: 300px; margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter); }
+.today-art { position: absolute; top: 0; right: -24px; width: 230px; height: 300px; z-index: 0; pointer-events: none; }
+/* a face never sits hard behind words: it fades out towards them */
+.today-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--bg) 0%, rgba(5, 5, 5, 0) 38%), linear-gradient(0deg, var(--bg) 0%, rgba(5, 5, 5, 0) 28%); }
+.today-hero > *:not(.today-art) { position: relative; z-index: 1; }
+.today-hero > .topbar { margin: 0 calc(-1 * var(--gutter)); }
+/* a face never sits hard behind words: a halo round each line */
+.today-head { display: flex; flex-direction: column; gap: 10px; padding: 36px 0 24px; text-shadow: 0 0 16px var(--bg), 0 0 5px var(--bg), 0 0 2px var(--bg); }
+.today-head .h-xl { font-size: 72px; }
+.today-focus { margin: 4px 0 0; line-height: 1.45; max-width: 22ch; }
+.today-top { height: 88px; }
+
+/* tablet and desktop: a bigger face and title */
+.today.wide .today-hero { min-height: 0; }
+.today.wide .today-art { width: 420px; height: 380px; right: 0; }
+.today.wide .today-head { gap: 12px; padding: 36px 0 0; }
+.today.wide .today-head .h-xl { font-size: 96px; line-height: 0.88; }
+.today.wide .today-focus { font-size: 17px; margin-top: 6px; max-width: 30ch; }
+.device-desktop .today .today-head { padding-top: 0; }
+.device-desktop .today .today-art { width: 440px; height: 400px; }
+
+/* the Next up card */
+.nextup { display: flex; flex-direction: column; gap: 14px; margin: 0 0 22px; padding: 18px; min-width: 0; position: relative; z-index: 1; }
+.nextup-text { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; }
+.nextup-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nextup-top > .fit { flex: 1 1 0; }
+.nextup-top .small { flex: none; }
+.nextup .h-m { margin: 0; line-height: 1.1; }
+.nextup-note { margin: 0; }
+.nextup-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nextup-title > .fit { flex: 1 1 0; }
+.nextup-title .pill.text { margin-right: -10px; }
+.nextup-text > .nextup-title + .nextup-note, .nextup-text > .h-m + .nextup-note { margin-top: -12px; }
+.nextup-btns { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.nextup-go { flex: 1; min-width: 0; height: 52px; min-height: 52px; font-size: 16px; }
+.nextup-btns .pill.text { flex: none; }
+.kbd.dark { border-color: rgba(5, 5, 5, 0.3); color: #050505; font-size: 12px; height: 20px; padding: 0 6px; }
+
+.nextup.wide { flex-direction: row; align-items: center; gap: 24px; margin-top: 36px; padding: 22px 24px; border-radius: 14px; }
+.nextup.wide .nextup-text { gap: 10px; }
+.nextup.wide .nextup-text > .nextup-title + .nextup-note { margin-top: 0; }
+.nextup.wide .nextup-note { font-size: 14px; }
+.nextup.wide .nextup-rail { max-width: 320px; margin-top: 4px; }
+.nextup.wide .nextup-btns { flex: none; flex-direction: column; align-items: stretch; gap: 4px; }
+.nextup.wide .nextup-go { flex: none; height: 56px; padding: 0 40px; font-size: 17px; gap: 12px; }
+.device-desktop .nextup.wide .nextup-go { padding: 0 28px; }
+
+/* readiness, one line and a word */
+.today-ready {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 12px; margin: 0 0 22px; padding: 14px 18px;
+  border: 1px solid var(--rule); border-radius: var(--radius-panel); text-decoration: none; color: var(--fg);
+}
+.today-ready:hover { border-color: var(--rule-strong); }
+.today-ready-word { font-size: 15px; font-weight: 600; text-align: right; }
+.today-ready > .fit { grid-column: 1 / -1; }
+
+/* the lists */
+.today-stage > section + section { margin-top: 28px; }
+.today-learn-rows > .row:last-child { border-bottom: 1px solid var(--rule); }
+.today.wide .today-learn-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+.today.wide .today-learn-rows > .row:last-child { border-bottom: 0; }
+.today.wide .today-learn { margin-top: 32px; }
+.today-panel { display: flex; flex-direction: column; gap: 28px; }
+.device-tablet .today-panel { padding-top: 72px; }
+.device-desktop .today-panel { padding-top: 88px; }
+.today-panel .row { min-height: 52px; font-size: 16px; }
+.today-task { display: flex; flex-direction: column; gap: 4px; padding: 14px 0; border-top: 1px solid var(--rule); text-decoration: none; color: var(--fg); }
+.today-task:hover { color: #fff; }
+.today-task-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.today-task-title i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.today-stage > section:last-child { margin-bottom: 8px; }
+.today-more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 32px; margin-top: 28px; }
+.today-more.one { grid-template-columns: minmax(0, 1fr); }
+.today-more:not(.one) .row { min-height: 52px; font-size: 16px; }
+
+/* phone: the day line wraps before it reaches Pim's face rather than running under it */
+.today-label { display: block; max-width: 22ch; line-height: 1.6; white-space: normal; }
+.today.wide .today-label { max-width: none; }

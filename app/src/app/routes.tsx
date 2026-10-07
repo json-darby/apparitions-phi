@@ -44,6 +44,12 @@ export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'n
   { path: '/street/door-to-door', screen: L(() => import('../street/DoorToDoor')), block: 'street' },
   { path: '/cast', screen: L(() => import('../street/Cast')) },
 
+  // School of the Night
+  { path: '/school', screen: L(() => import('../school/SchoolMap')), block: 'school' },
+  { path: '/school/section/:id', screen: L(() => import('../school/SchoolSection')), block: 'school' },
+  { path: '/school/lesson', screen: L(() => import('../school/SchoolLesson')), block: 'school' },
+  { path: '/school/custom', screen: L(() => import('../school/SchoolCustom')), block: 'school' },
+
   // Animations
   { path: '/anim', screen: L(() => import('../anim/Catalogue')) },
 ];

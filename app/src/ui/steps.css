@@ -1,0 +1,117 @@
+/* The step shell (ui/StepShell.tsx) and the welcome page. Built on global.css and shell.css. */
+
+.steps { min-height: 100dvh; display: flex; flex-direction: column; }
+.steps-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.steps-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none;
+  min-height: calc(64px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--gutter) 0;
+}
+.steps-head > .logo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.steps-head-right { display: flex; align-items: center; gap: 10px; flex: none; }
+.steps-head-right .pill.text { min-height: 44px; padding: 0 10px; margin-right: -10px; }
+.steps-rail { padding: 0 var(--gutter); flex: none; }
+
+/* the art band: Pim at the right, faded into the ground at its foot */
+.steps-art { position: relative; flex: none; height: 176px; overflow: hidden; }
+.steps-art::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50px; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(5, 5, 5, 0), var(--bg));
+}
+.steps-art .tone-lines { position: absolute; left: 50%; top: 22px; width: min(350px, calc(100% - 2 * var(--gutter))); height: auto; transform: translateX(-50%); }
+
+.steps-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); min-width: 0; }
+.steps-body .h-l { margin: 0; }
+.steps-body .body { margin: 0; }
+
+/* Back and Next stay at the foot of the screen, long page or short */
+.steps-foot {
+  position: sticky; bottom: 0; z-index: 4; flex: none; display: flex; flex-direction: column; gap: 14px;
+  padding: 20px var(--gutter) max(32px, calc(16px + env(safe-area-inset-bottom)));
+  background: linear-gradient(to bottom, rgba(5, 5, 5, 0), var(--bg) 16px);
+}
+.steps-btns { display: flex; gap: 10px; }
+.steps-btns .pill { height: 56px; }
+.steps-btns .pill:not(.solid) { padding: 0 24px; flex: none; }
+.steps-btns .pill.solid { flex: 1; min-width: 0; white-space: normal; text-align: center; line-height: 1.15; }
+
+/* tablet and desktop: the art fills the left half, the words sit on the right */
+.steps.split { flex-direction: row; }
+.steps.split .steps-art {
+  width: 44%; max-width: 520px; height: 100dvh; position: sticky; top: 0; border-right: 1px solid var(--rule);
+}
+.steps.split .steps-art::after { display: none; }
+.steps.split .steps-art { --face-w: 100%; }
+.steps.split .steps-art .tone-lines { top: 50%; transform: translate(-50%, -50%); width: min(350px, 80%); }
+.steps-art-caption { position: absolute; left: 32px; right: 32px; bottom: 32px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
+.steps.split .steps-main { padding: 0 48px 0; }
+.steps.split .steps-head { min-height: 80px; padding: 0; }
+.steps.split .steps-rail { padding: 0; }
+.steps.split .steps-body { padding: 0; margin-top: clamp(32px, 9vh, 88px); max-width: 520px; gap: 20px; }
+.steps.split .body { font-size: 17px; }
+.steps.split .steps-foot { padding: 32px 0 40px; max-width: 520px; width: 100%; }
+@media (max-width: 899px) { .steps.split .steps-main { padding: 0 32px; } }
+
+/* a question's title: the same two-line box on every step, so the words below never jump */
+.steps-title { min-height: 72px; text-wrap: balance; }
+.steps.split .steps-title { min-height: 0; }
+
+/* two facts side by side under a choice */
+.step-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--rule); padding-top: 14px; }
+.step-facts > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.step-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.step-total b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.step-note { margin: 0; border-top: 1px solid var(--rule); padding-top: 12px; }
+
+/* the trip date: one big field over the native date picker */
+.date-field { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.date-box {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  height: 64px; padding: 0 18px; border-radius: var(--radius-opt); border: 1px solid var(--fg); background: var(--bg-2);
+}
+.date-box .v { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; }
+.date-box input[type='date'] {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; padding: 0; cursor: pointer;
+}
+.date-box:focus-within { outline: 2px solid var(--fg); outline-offset: 2px; }
+.date-box.off { border-color: var(--rule); background: transparent; }
+.date-box.off .v { color: var(--mut); }
+.steps.split .date-box { height: 72px; padding: 0 22px; }
+.steps.split .date-box .v { font-size: 28px; }
+
+.trip-line { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+.trip-track { position: relative; height: 14px; }
+.trip-track::before { content: ''; position: absolute; left: 6px; right: 6px; top: 6px; height: 1px; background: var(--rule-strong); }
+.trip-track i { position: absolute; top: 1px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; }
+.trip-track i.today { background: var(--fg); }
+.trip-track i.end { border: 1px solid var(--fg); background: var(--bg); }
+.trip-track i.fly { background: var(--blue); box-shadow: 0 0 14px var(--blue); }
+.trip-labels { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--mut); font-variant-numeric: tabular-nums; }
+.trip-labels .fly { color: var(--fg); }
+.check-line { display: flex; align-items: center; gap: 12px; min-height: 48px; border-top: 1px solid var(--rule); font-size: 15px; color: var(--fg-2); cursor: pointer; }
+.check-line input { width: 20px; height: 20px; margin: 0; accent-color: var(--fg); }
+
+/* ---------- welcome ---------- */
+.welcome { min-height: 100dvh; display: flex; flex-direction: column; }
+.welcome-art { flex: 1 1 392px; max-height: 392px; min-height: 200px; margin-top: env(safe-area-inset-top); position: relative; }
+.welcome-body { flex: 1 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 0 var(--gutter) max(32px, calc(16px + env(safe-area-inset-bottom))); }
+.welcome-name { display: flex; align-items: baseline; gap: 14px; }
+.welcome-name h1 { margin: 0; font-size: 96px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.86; }
+.welcome-name .thai { font-size: 40px; font-weight: 600; color: var(--mut); }
+.tone-hook { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.tone-hook > div { display: flex; align-items: center; gap: 8px; padding: 12px 0; min-width: 0; }
+.tone-hook > div + div { padding-left: 14px; border-left: 1px solid var(--rule); }
+.tone-hook svg { flex: none; }
+.tone-hook b { display: block; font-size: 15px; font-weight: 600; }
+.tone-hook .small { display: block; }
+.welcome-go { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+.welcome-go .pill { height: 56px; }
+.welcome-go .small { text-align: center; }
+@media (max-width: 389px) { .tone-hook svg { width: 28px; } .tone-hook > div + div { padding-left: 10px; } }
+@media (max-width: 359px) { .welcome-name h1 { font-size: 80px; } }
+
+.welcome.split { flex-direction: row; }
+.welcome.split .welcome-art { flex: none; width: 44%; max-width: 520px; max-height: none; height: 100dvh; position: sticky; top: 0; border-right: 1px solid var(--rule); margin: 0; }
+.welcome.split .welcome-body { flex: 1; justify-content: center; padding: 48px; max-width: 616px; }
+.welcome.split .welcome-go { margin-top: 24px; }
+.welcome.split .body { font-size: 17px; }

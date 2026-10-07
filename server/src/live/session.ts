@@ -12,11 +12,11 @@ import { localDay } from '../ledger.ts';
 import { RateLimiter } from '../limits.ts';
 import { log } from '../log.ts';
 import { composeInstruction } from './guard.ts';
-import { MockUpstream } from './mock.ts';
-import { isScript, type ClientMsg, type LimitReason, type ServerMsg } from './protocol.ts';
+import { MockTutor, MockUpstream } from './mock.ts';
+import { cleanDirective, isScript, type ClientMsg, type LimitReason, type ServerMsg } from './protocol.ts';
 import { VertexUpstream, type Upstream, type UpstreamEvents } from './upstream.ts';
 
-const TOOL_NAMES = new Set(['slotFilled', 'questComplete', 'flagUnsafe']);
+const TOOL_NAMES = new Set(['slotFilled', 'questComplete', 'flagUnsafe', 'lineHeard', 'repeatAsked']);
 const MAX_FLAGS = 3;
 
 export class LiveSession {
@@ -116,14 +116,17 @@ export class LiveSession {
       systemInstruction: composeInstruction(String(m.systemInstruction ?? ''), adultScene),
       tools: Array.isArray(m.tools) ? m.tools.filter((t) => TOOL_NAMES.has(t?.name)) : [],
       voice: m.voice === 'm' ? ('m' as const) : ('f' as const),
+      tutor: m.tutor === true,
     };
     this.upstream = c.mock
-      ? new MockUpstream(isScript(m.script) ? m.script : undefined, setup.voice, events, this.hub.mockDelayMs)
+      ? setup.tutor
+        ? new MockTutor(setup.voice, events, this.hub.mockDelayMs)
+        : new MockUpstream(isScript(m.script) ? m.script : undefined, setup.voice, events, this.hub.mockDelayMs)
       : new VertexUpstream(c, setup, events);
     await this.upstream.open();
     this.startMs = Date.now();
     this.ticker = setInterval(() => this.tick(), 1000);
-    log('live.start', { session: this.id.slice(0, 8), mock: c.mock, task: m.taskId });
+    log('live.start', { session: this.id.slice(0, 8), mock: c.mock, task: m.taskId, tutor: setup.tutor });
   }
 
   /** Transcription arrives in pieces: gather them into one line per speaker per turn. */
@@ -170,6 +173,11 @@ export class LiveSession {
       case 'text':
         if (typeof m.text === 'string' && m.text.trim()) this.upstream.text(m.text.slice(0, 500));
         return;
+      case 'directive': {
+        const d = cleanDirective(m.directive);
+        if (d) this.upstream.directive(d);
+        return;
+      }
       case 'toolResult':
         if (typeof m.id === 'string' && TOOL_NAMES.has(m.name)) this.upstream.toolResponse(m.id, m.name, m.response ?? {});
         return;

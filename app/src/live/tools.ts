@@ -67,6 +67,44 @@ export function liveTools(steps: string[]): FunctionDeclaration[] {
   ];
 }
 
+// ---------- School of the Night's tutor ----------
+//
+//  lineHeard(lineId, verdict, heardThai)  what the tutor heard the learner say
+//  repeatAsked(slower)                    the learner asked to hear it again
+//  flagUnsafe(category, note)             as above
+//
+// The app runs the lesson: these only report. The verdict is backed by the
+// app's own transcript match (school/runner.ts combineVerdict) before it counts.
+
+export const TUTOR_TOOL_NAMES = ['lineHeard', 'repeatAsked', 'flagUnsafe'] as const;
+export const VERDICTS = ['right', 'close', 'wrong', 'none'] as const;
+export type Verdict = (typeof VERDICTS)[number];
+
+export function tutorTools(): FunctionDeclaration[] {
+  const unsafe = liveTools([]).find((t) => t.name === 'flagUnsafe')!;
+  return [
+    {
+      name: 'lineHeard',
+      description: 'Call once after every learner turn: which line they were asked for, whether they said it, and the Thai you heard. Then say nothing and wait for the next instruction.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          lineId: { type: 'STRING', description: 'The line id given in the instruction.' },
+          verdict: { type: 'STRING', enum: [...VERDICTS], description: 'right: they said the line (a different polite ending is fine). close: most of it. wrong: something else. none: silence or nothing you could make out.' },
+          heardThai: { type: 'STRING', description: 'The Thai you heard, in Thai script.' },
+        },
+        required: ['lineId', 'verdict'],
+      },
+    },
+    {
+      name: 'repeatAsked',
+      description: 'Call when the learner asks you to say it again, to slow down, or says they do not understand. Then say your last line again (slowly if asked) and wait.',
+      parameters: { type: 'OBJECT', properties: { slower: { type: 'BOOLEAN', description: 'They asked you to speak more slowly.' } } },
+    },
+    unsafe,
+  ];
+}
+
 // ---------- Thai matching (consonants and vowels; tone marks removed) ----------
 
 const TONE_MARKS = /[่-๋]/g;
@@ -91,7 +129,7 @@ export function similarity(a0: string, b0: string): number {
 }
 
 /** Strip the polite ending so ครับ / ค่ะ / คะ never decide a match. */
-function core(thai: string): string {
+export function core(thai: string): string {
   return thai.replace(/(นะครับ|นะคะ|ครับ|ค่ะ|คะ)\s*$/u, '');
 }
 

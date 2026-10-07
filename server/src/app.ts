@@ -1,4 +1,5 @@
-// The HTTP side: GET /health, POST /stt, and the /live websocket upgrade.
+// The HTTP side: GET /health, POST /stt, POST /school/custom (School of the
+// Night's custom lessons, see custom.ts), and the /live websocket upgrade.
 // CORS and websocket origins are limited to the app's own origins. When an
 // access code is set (always on a public address) /stt and /live need it and
 // /health without it says only that a code is needed. Request bodies, audio,
@@ -17,6 +18,8 @@ import { RateLimiter } from './limits.ts';
 import { log, setQuiet } from './log.ts';
 import { LiveHub } from './live/session.ts';
 import { audioSeconds, sttMock, sttReal, type SttRequest } from './stt.ts';
+import { buildCustom, mockModels, readBody as readCustomBody, screenScenario, type Models } from './custom.ts';
+import { geminiText, TextHttpError, textCredentials } from './text.ts';
 
 export const VERSION = '0.1.0';
 
@@ -92,6 +95,8 @@ export function createPhiServer(overrides: Partial<Config> = {}, opts: { quiet?:
   const hub = new LiveHub(config, ledger);
   const access = new AccessGuard(config);
   const sttLimiter = new RateLimiter(config.sttPerMinute);
+  const customLimiter = new RateLimiter(config.customPerMinute);
+  const customReady = config.mock || textCredentials(config);
   const liveReady = config.mock || liveCredentials(config);
   const sttReady = config.mock || sttCredentials(config);
   const ipOf = (req: IncomingMessage) => clientIp(req, config.trustedProxyHops);
@@ -117,6 +122,10 @@ export function createPhiServer(overrides: Partial<Config> = {}, opts: { quiet?:
         available: sttReady,
         model: config.mock ? 'mock' : config.sttModel,
         callsLeftToday: Math.max(0, config.sttPerDay - ledger.sttCallsOn()),
+      },
+      custom: {
+        available: customReady,
+        requestsLeftToday: Math.max(0, config.customPerDay - ledger.customRequestsOn()),
       },
       budget: { ok: spent < config.budgetUsd, spentUsd: Math.round(spent * 100) / 100, capUsd: config.budgetUsd },
     };
@@ -177,6 +186,54 @@ export function createPhiServer(overrides: Partial<Config> = {}, opts: { quiet?:
     }
   }
 
+  /** School of the Night: write a custom section (or reword one line), checked. Behind the code and the daily cap. */
+  async function custom(req: IncomingMessage, res: ServerResponse) {
+    const a = access.check(ipOf(req), suppliedCode(req));
+    if (a !== 'open' && a !== 'ok') {
+      const x = REFUSAL[a];
+      return json(res, x.status, { error: x.code, message: x.message }, a === 'throttled' ? { 'Retry-After': retryAfter() } : {});
+    }
+    if (!(req.headers['content-type'] ?? '').includes('application/json')) return json(res, 415, { error: 'send JSON' });
+    if (!customLimiter.take(clientKey(req))) return json(res, 429, { error: 'rate', message: 'Too many requests a minute. Try again shortly.' });
+    if (ledger.customRequestsOn() >= config.customPerDay) return json(res, 429, { error: 'daily', message: "Today's custom lessons are used up. More tomorrow." });
+    if (!customReady) return json(res, 503, { error: 'unavailable', message: 'Custom lessons need PHI_GCP_PROJECT or PHI_API_KEY on the server.' });
+    const raw = await readBody(req, 96 * 1024);
+    if (!raw) return json(res, 413, { error: 'too-large' });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw.toString('utf8'));
+    } catch {
+      return json(res, 400, { error: 'bad-json' });
+    }
+    const body = readCustomBody(parsed);
+    if (typeof body === 'string') return json(res, 400, { error: 'bad-request', message: body });
+    // screened here first: a refused scenario costs nothing and does not count
+    const screen = screenScenario(`${body.scenario}
+${body.mine ?? ''}
+${body.reword?.en ?? ''}`, body.adult);
+    if (!screen.ok) return json(res, 422, { error: screen.code, message: screen.message });
+    if (!config.mock && ledger.spent() >= config.budgetUsd) return json(res, 402, { error: 'budget', message: 'Spending cap reached.' });
+    // counted before the work, so failures count too and cannot be hammered
+    ledger.record({ kind: 'text', model: config.mock ? 'mock' : config.textModel, units: { seconds: 0 }, usd: 0, mock: config.mock, note: 'school.request' });
+    const models: Models = config.mock
+      ? mockModels()
+      : { write: geminiText(config, ledger), check: geminiText(config, ledger), writeModel: config.textModel, checkModel: config.textCheckModel };
+    try {
+      const r = await buildCustom(body, models);
+      if (!r.ok) {
+        log('custom.refused', { code: r.code });
+        return json(res, r.status, { error: r.code, message: r.message });
+      }
+      log('custom.done', { mock: config.mock, lines: 'draft' in r ? r.draft.lines.length : 1, dropped: 'draft' in r ? r.draft.dropped : 0 });
+      return json(res, 200, 'draft' in r ? { draft: { ...r.draft, mock: config.mock } } : { line: r.line, mock: config.mock });
+    } catch (e) {
+      if (e instanceof BudgetExceeded) return json(res, 402, { error: 'budget', message: 'Spending cap reached.' });
+      if (e instanceof TextHttpError && e.status === 451) return json(res, 422, { error: 'unsafe', message: 'That lesson cannot be written.' });
+      log('custom.failed', { reason: e instanceof Error ? e.message.slice(0, 60) : 'error' });
+      return json(res, 502, { error: 'upstream', message: 'The lesson writer is not answering. Try again later.' });
+    }
+  }
+
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!originOk(config, req.headers.origin)) return json(res, 403, { error: 'origin' });
@@ -189,6 +246,12 @@ export function createPhiServer(overrides: Partial<Config> = {}, opts: { quiet?:
     if (req.method === 'GET' && url.pathname === '/health') return healthRoute(req, res);
     if (req.method === 'POST' && url.pathname === '/stt') {
       stt(req, res).catch(() => {
+        if (!res.headersSent) json(res, 500, { error: 'server' });
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/school/custom') {
+      custom(req, res).catch(() => {
         if (!res.headersSent) json(res, 500, { error: 'server' });
       });
       return;

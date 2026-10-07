@@ -1,10 +1,11 @@
 // Shared parts: top bar, screen frame, labels, rows, meters, stats, pills,
 // rating bar, Thai text with fading romanisation, sheets.
 
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useApp, useStoreVersion } from '../app/context';
 import { useDevice } from '../app/device';
-import { Link, back } from '../app/router';
+import { Link, back, useRoute } from '../app/router';
+import { TAB_ROUTES } from '../app/Nav';
 import { fullscreenSupported, isStandalone, toggleFullscreen, useFullscreen } from '../app/fullscreen';
 import { SIMPLE_RATINGS, Six, SIX_LABELS } from '../engine/grade';
 import { useKeys } from '../input/keys';
@@ -39,6 +40,9 @@ export function FullscreenButton({ wide }: { wide?: boolean }) {
 
 export function TopBar({ mid, parent, right, hideLogo }: { mid?: ReactNode; parent?: string; right?: ReactNode; hideLogo?: boolean }) {
   const { device } = useDevice();
+  const { path } = useRoute();
+  // a main screen on a phone or tablet: the tab bar is the way back, so no Back pill
+  const tabbed = device !== 'desktop' && parent === '/' && TAB_ROUTES.includes(path);
   return (
     <header className="topbar">
       {device !== 'desktop' && !hideLogo ? <Logo /> : <span />}
@@ -46,7 +50,7 @@ export function TopBar({ mid, parent, right, hideLogo }: { mid?: ReactNode; pare
       <div className="right">
         {right}
         {device !== 'desktop' && <FullscreenButton />}
-        {parent != null && (
+        {parent != null && !tabbed && (
           <button className="pill small" onClick={() => back(parent)}>
             Back
           </button>
@@ -84,23 +88,53 @@ export function SectionHead({ title, note }: { title: string; note?: string }) {
   );
 }
 
+/** A label on the left and a note on the right, over a list of rows. */
+export function ListHead({ title, note }: { title: string; note?: ReactNode }) {
+  return (
+    <div className="list-head">
+      <h2 className="label">{title}</h2>
+      {note != null && <span className="small">{note}</span>}
+    </div>
+  );
+}
+
+const TICK = (
+  <svg className="row-tick" viewBox="0 0 24 24" fill="none" stroke="var(--good)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </svg>
+);
+
+/**
+ * A row: title on the left, meta on the right. In a list with ticks (`ticks`),
+ * a done row is muted with a green tick and every title keeps the tick's room;
+ * otherwise `done` turns the right-hand note green.
+ */
 export function Row({
-  children, right, onClick, to, disabled, done,
-}: { children: ReactNode; right?: ReactNode; onClick?: () => void; to?: string; disabled?: boolean; done?: boolean }) {
+  children, right, onClick, to, disabled, done, ticks,
+}: { children: ReactNode; right?: ReactNode; onClick?: () => void; to?: string; disabled?: boolean; done?: boolean; ticks?: boolean }) {
   const inner = (
     <>
-      <span>{children}</span>
-      <span className={`row-right ${done ? 'done' : ''}`}>{right}</span>
+      {ticks ? (
+        <span className="row-title">
+          {done ? TICK : <span className="row-tick" aria-hidden="true" />}
+          <span>{children}</span>
+          {done && <span className="sr-only">, done</span>}
+        </span>
+      ) : (
+        <span>{children}</span>
+      )}
+      <span className={`row-right ${done && !ticks ? 'done' : ''}`}>{right}</span>
     </>
   );
+  const cls = `row ${ticks && done ? 'is-done' : ''}`;
   if (to && !disabled)
     return (
-      <Link to={to} className="row" style={{ textDecoration: 'none' }}>
+      <Link to={to} className={cls} style={{ textDecoration: 'none' }}>
         {inner}
       </Link>
     );
   return (
-    <button className="row" onClick={onClick} disabled={disabled} type="button">
+    <button className={cls} onClick={onClick} disabled={disabled} type="button">
       {inner}
     </button>
   );
@@ -190,6 +224,77 @@ export function Note({ children }: { children: ReactNode }) {
   return <div className="placeholder-note">{children}</div>;
 }
 
+/** The segmented step rail: one segment a step, done, now and to come. `part` (0..1) fills the current segment that far. */
+export function StepSegments({ n, at, part, label, plain }: { n: number; at: number; part?: number; label?: string; plain?: boolean }) {
+  return (
+    <ol className="steprail" aria-label={label ?? `Step ${Math.min(at + 1, n)} of ${n}`}>
+      {Array.from({ length: n }, (_, i) => {
+        // plain: no "now" shade, only done and to come (the set-up steps count the one in hand as done)
+        const cls = i < at ? 'done' : i === at && !plain ? 'now' : '';
+        const style = i === at && part != null && part > 0
+          ? { background: `linear-gradient(90deg, var(--fg) ${Math.round(part * 100)}%, var(--rule) ${Math.round(part * 100)}%)` }
+          : undefined;
+        return <li key={i} className={cls} style={style} />;
+      })}
+    </ol>
+  );
+}
+
+/**
+ * Option cards: a choice as radio cards with a dot (or, `big`, a large value
+ * and a note in a two-column grid). Arrow keys move the choice, as in any radio group.
+ */
+export function OptionCards<T extends string | number>({
+  value, options, onChange, label, big,
+}: { value: T; options: { v: T; title: ReactNode; sub?: ReactNode; glow?: string }[]; onChange: (v: T) => void; label: string; big?: boolean }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: KeyboardEvent, i: number) => {
+    const d = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const j = (i + d + options.length) % options.length;
+    onChange(options[j].v);
+    refs.current[j]?.focus();
+  };
+  return (
+    <div className={`opts ${big ? 'two' : ''}`} role="radiogroup" aria-label={label}>
+      {options.map((o, i) => {
+        const on = o.v === value;
+        return (
+          <button
+            key={String(o.v)}
+            ref={(el) => { refs.current[i] = el; }}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            tabIndex={on ? 0 : -1}
+            className={`opt ${big ? 'big' : ''}`}
+            onClick={() => onChange(o.v)}
+            onKeyDown={(e) => onKey(e, i)}
+          >
+            {big ? (
+              <>
+                <span className="opt-title">{o.title}</span>
+                {o.sub && <span className="opt-sub">{o.sub}</span>}
+              </>
+            ) : (
+              <>
+                <span className="opt-dot" aria-hidden="true" />
+                <span className="opt-text">
+                  <span className="opt-title">{o.title}</span>
+                  {o.sub && <span className="opt-sub">{o.sub}</span>}
+                </span>
+                {o.glow && <span className="opt-glow" aria-hidden="true" style={{ background: o.glow, boxShadow: `0 0 14px ${o.glow}` }} />}
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** A step rail: done, current, to come. */
 export function StepRail({ steps, at }: { steps: string[]; at: number }) {
   return (
@@ -270,6 +375,9 @@ export function fmtInterval(ms: number): string {
  */
 export function RatingBar({ preview, onRate, chosen, enabled = true, scale = 'detailed' }: { preview: Record<Six, number> | null; onRate: (s: Six) => void; chosen?: Six | null; enabled?: boolean; scale?: 'simple' | 'detailed' }) {
   const now = Date.now();
+  const { device, touch } = useDevice();
+  // a keyboard shows which number rates
+  const keyed = device === 'desktop' && !touch;
   const buttons = scale === 'simple' ? SIMPLE_RATINGS : ([1, 2, 3, 4, 5, 6] as Six[]).map((six) => ({ six, label: SIX_LABELS[six] }));
   useKeys((a) => {
     if (a.type === 'rate' && a.n <= buttons.length) {
@@ -282,7 +390,7 @@ export function RatingBar({ preview, onRate, chosen, enabled = true, scale = 'de
       {buttons.map((b, i) => (
         <button key={b.six} className={`rating ${chosen === b.six ? 'on' : ''}`} onClick={() => onRate(b.six)} disabled={!enabled} type="button">
           <b>{b.label}</b>
-          <span>{preview ? fmtInterval(preview[b.six] - now) : `key ${i + 1}`}</span>
+          <span>{preview ? `${keyed ? `${i + 1} · ` : ''}${fmtInterval(preview[b.six] - now)}` : `key ${i + 1}`}</span>
         </button>
       ))}
     </div>

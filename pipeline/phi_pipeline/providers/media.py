@@ -54,18 +54,19 @@ class VertexMedia:
         else:
             raise SystemExit("VertexMedia: no PHI_GCP_PROJECT or PHI_API_KEY set.")
 
-    def image(self, *, stage: str, prompt: str, refs: list[bytes] | None = None, model: str | None = None, aspect: str = "1:1") -> Image:
+    def image(self, *, stage: str, prompt: str, refs: list[bytes] | None = None, model: str | None = None, aspect: str = "1:1", size: str | None = None, price: float | None = None) -> Image:
         from google.genai import types
 
         m = model or MODELS.image
-        price = PRICES.image_ref if m == MODELS.image_ref else PRICES.image
+        if price is None:
+            price = PRICES.image_ref if m == MODELS.image_ref else PRICES.image
         self.ledger.reserve(stage, "image", m, price)
         parts: list = [types.Part.from_bytes(data=r, mime_type="image/png") for r in (refs or [])]
         parts.append(prompt)
         resp = self.client.models.generate_content(
             model=m,
             contents=parts,
-            config=types.GenerateContentConfig(response_modalities=["IMAGE"], image_config=types.ImageConfig(aspect_ratio=aspect)),
+            config=types.GenerateContentConfig(response_modalities=["IMAGE"], image_config=types.ImageConfig(aspect_ratio=aspect, **({"image_size": size} if size else {}))),
         )
         for cand in resp.candidates or []:
             for part in (cand.content.parts if cand.content else []) or []:

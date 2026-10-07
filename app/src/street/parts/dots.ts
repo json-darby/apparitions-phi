@@ -1,9 +1,5 @@
-// Pixi helpers for The Street: people as glowing dot figures that resolve as your
-// reputation grows (Clearer as you learn), and a seeded random source. The
-// portrait renderer (Phase 3) draws faces; on the street these stand-ins keep
-// the same look: dots, glow, rows that tear when you barely know someone.
-
-import { BlurFilter, Container, Graphics } from 'pixi.js';
+// Helpers for The Street: the standing figure the cast are drawn from (as dots,
+// by the street renderer), and a seeded random source.
 
 export function rng(seed: number) {
   let s = seed >>> 0 || 1;
@@ -23,7 +19,7 @@ export function hashStr(s: string): number {
 }
 
 /** Is (x, y) inside a standing figure of height h? y runs from -h (top) to 0 (feet). */
-function inside(x: number, y: number, h: number, build: number): boolean {
+export function inside(x: number, y: number, h: number, build: number): boolean {
   const u = h / 250;
   const ax = Math.abs(x) / u;
   const yy = (y + h) / u; // 0 at the top of the head
@@ -53,48 +49,29 @@ function inside(x: number, y: number, h: number, build: number): boolean {
   return false;
 }
 
-export interface FigureOpts {
-  colour: string;
-  /** 0..1: faint and torn at 0, solid at 1 */
-  clarity: number;
-  seed: number;
-  height?: number;
-  build?: number;
-}
-
-/** A standing person drawn in dots with a soft glow. */
-export function dotFigure({ colour, clarity, seed, height = 250, build = 1 }: FigureOpts): Container {
-  const c = new Container();
-  const r = rng(seed);
-  const dots = new Graphics();
-  const n = Math.round(380 + 620 * clarity);
-  const rowShift = new Map<number, number>();
-  const rowKeep = new Map<number, boolean>();
-  let placed = 0;
-  let guard = 0;
-  while (placed < n && guard++ < n * 8) {
-    const x = (r() - 0.5) * 96 * (height / 250) * build;
-    const y = -r() * height;
-    if (!inside(x, y, height, build)) continue;
-    const row = Math.floor((y + height) / 7);
-    if (!rowKeep.has(row)) {
-      rowKeep.set(row, r() < 0.45 + clarity * 0.6);
-      rowShift.set(row, (r() - 0.5) * (1 - clarity) * 34);
+/**
+ * A standing figure as a texture for the street's dot renderer: grey brightness
+ * (lit from above, a little from the shop side), alpha = the outline. The
+ * figure fills the canvas from crown (top) to soles (bottom), 0.4 wide.
+ */
+export function figureCanvas(build = 1, rows = 200): HTMLCanvasElement {
+  const H = rows;
+  const W = Math.round(rows * 0.4);
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const g = cv.getContext('2d')!;
+  const im = g.createImageData(W, H);
+  for (let py = 0; py < H; py++)
+    for (let px = 0; px < W; px++) {
+      const x = ((px + 0.5) / W - 0.5) * 100;
+      const y = ((py + 0.5) / H - 1) * 250;
+      if (!inside(x, y, 250, build)) continue;
+      const k = (py * W + px) * 4;
+      const l = 0.5 + 0.38 * (1 - (py + 0.5) / H) + 0.1 * (x / 50);
+      im.data[k] = im.data[k + 1] = im.data[k + 2] = Math.round(255 * Math.max(0, Math.min(1, l)));
+      im.data[k + 3] = 255;
     }
-    if (!rowKeep.get(row)) continue;
-    const jitter = (1 - clarity) * 6;
-    const px = x + rowShift.get(row)! + (r() - 0.5) * jitter;
-    const py = y + (r() - 0.5) * jitter;
-    const a = (0.25 + 0.75 * clarity) * (0.45 + r() * 0.55);
-    dots.circle(px, py, 0.9 + r() * 1.3).fill({ color: colour, alpha: a });
-    placed++;
-  }
-  const glow = dots.clone();
-  glow.filters = [new BlurFilter({ strength: 9, quality: 2 })];
-  glow.alpha = 0.55 + clarity * 0.35;
-  glow.blendMode = 'add';
-  const floor = new Graphics().ellipse(0, 2, 46 * build, 9).fill({ color: colour, alpha: 0.12 + clarity * 0.12 });
-  floor.filters = [new BlurFilter({ strength: 6 })];
-  c.addChild(floor, glow, dots);
-  return c;
+  g.putImageData(im, 0, 0);
+  return cv;
 }

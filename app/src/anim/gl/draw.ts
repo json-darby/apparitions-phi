@@ -23,6 +23,14 @@ export interface CloudOpts {
   aspect?: number;
   /** 1 fades the bottom of a bust out softly (people) */
   foot?: number;
+  /** least share of dots kept where the source is dark (portraits: hair and the shadow side stay readable) */
+  floor?: number;
+  /** depth slope where dots start and finish thinning out (default 0.045 to 0.09) */
+  slope?: [number, number];
+  /** 1: the set of lit dots does not reshuffle over time */
+  stable?: number;
+  /** rows where the bust starts and finishes fading out (default 0.72 to 0.95) */
+  footRange?: [number, number];
   depth?: [number, number];
   rot?: [number, number, number];
   xf?: [number, number, number, number];
@@ -69,6 +77,12 @@ export function drawCloud(c: FrameCtx, o: CloudOpts) {
   gl.uniform1f(p.u('uN'), o.ny);
   gl.uniform1f(p.u('uAsp'), o.aspect ?? o.nx / o.ny);
   gl.uniform1f(p.u('uFoot'), o.foot ?? 0);
+  gl.uniform1f(p.u('uFloor'), o.floor ?? 0);
+  const sl = o.slope ?? [0.045, 0.09];
+  gl.uniform2f(p.u('uSlope'), sl[0], sl[1]);
+  gl.uniform1f(p.u('uStable'), o.stable ?? 0);
+  const fr = o.footRange ?? [0.72, 0.95];
+  gl.uniform2f(p.u('uFootR'), fr[0], fr[1]);
   gl.uniform1f(p.u('uG'), o.tear ?? 0.15);
   const d = o.depth ?? [0.45, 2.2];
   gl.uniform2f(p.u('uDepth'), d[0], d[1]);

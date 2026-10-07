@@ -26,6 +26,13 @@
 //   PHI_STT_LOCATION    region for Chirp 3 STT (default us)
 //   PHI_STT_FALLBACK_LOCATION  region for Chirp 2 STT (default asia-southeast1)
 //   PHI_LIVE_MINUTES_PER_DAY   default 20
+//   PHI_TEXT_MODEL      School of the Night custom lessons: the model that
+//                       writes a section (default gemini-3.8-flash)
+//   PHI_TEXT_CHECK_MODEL the second, different model that checks it
+//                       (default gemini-2.5-pro, as in the pipeline)
+//   PHI_TEXT_LOCATION   Vertex region for those (default global)
+//   PHI_CUSTOM_PER_DAY  custom-lesson requests a day (default 12; a reworded
+//                       line counts as one)
 //   PHI_LEDGER_PATH     usage ledger file (default <PHI_SERVER_WORK>/usage.jsonl)
 //   PHI_TRUSTED_PROXY_HOPS  proxies in front that append to X-Forwarded-For
 //                       (default 1 on Cloud Run, 0 elsewhere)
@@ -66,6 +73,12 @@ export interface Config {
   liveEndpoint: string | null;
   /** prebuilt Live voices by speaker sex */
   liveVoices: { f: string; m: string };
+  /**
+   * School of the Night's tutor voice (PHI_LIVE_VOICE_TUTOR): unset uses the
+   * model's default voice; 'by-sex' uses liveVoices by the app's "they speak
+   * as" choice; anything else is a prebuilt voice name.
+   */
+  liveTutorVoice: string | null;
   /** send speechConfig.languageCode th-TH (some native-audio models ignore it) */
   liveLanguageCode: string | null;
   sttModel: string;
@@ -86,6 +99,12 @@ export interface Config {
   sttPerMinute: number;
   sttPerDay: number;
   sttMaxBytes: number;
+  /** School of the Night custom lessons: the writer and the checker, and their limits */
+  textModel: string;
+  textCheckModel: string;
+  textLocation: string;
+  customPerDay: number;
+  customPerMinute: number;
   /** wrong access codes allowed from one address before it has to wait */
   codeFailures: number;
   /** minutes that address waits */
@@ -94,7 +113,7 @@ export interface Config {
   reattachSeconds: number;
   /** money */
   budgetUsd: number;
-  prices: { liveMinute: number; sttSecond: number };
+  prices: { liveMinute: number; sttSecond: number; text: Record<string, { in: number; out: number }> };
   /** files */
   workDir: string;
   ledgerFile: string;
@@ -189,6 +208,7 @@ export function loadConfig(overrides: Partial<Config> = {}, env: Record<string, 
     liveModel: get('PHI_LIVE_MODEL') ?? 'gemini-3.8-live',
     liveEndpoint: get('PHI_LIVE_ENDPOINT') ?? null,
     liveVoices: { f: get('PHI_LIVE_VOICE_F') ?? 'Kore', m: get('PHI_LIVE_VOICE_M') ?? 'Charon' },
+    liveTutorVoice: get('PHI_LIVE_VOICE_TUTOR') ?? null,
     liveLanguageCode: get('PHI_LIVE_LANGUAGE_CODE') === 'none' ? null : get('PHI_LIVE_LANGUAGE_CODE') ?? 'th-TH',
     sttModel: get('PHI_STT_MODEL') ?? 'chirp_3',
     sttLocation: get('PHI_STT_LOCATION') ?? 'us',
@@ -204,11 +224,25 @@ export function loadConfig(overrides: Partial<Config> = {}, env: Record<string, 
     sttPerMinute: num(get('PHI_STT_PER_MINUTE'), 30),
     sttPerDay: num(get('PHI_STT_PER_DAY'), 400),
     sttMaxBytes: num(get('PHI_STT_MAX_BYTES'), 2_000_000),
+    textModel: get('PHI_TEXT_MODEL') ?? 'gemini-3.8-flash',
+    textCheckModel: get('PHI_TEXT_CHECK_MODEL') ?? 'gemini-2.5-pro',
+    textLocation: get('PHI_TEXT_LOCATION') ?? 'global',
+    customPerDay: num(get('PHI_CUSTOM_PER_DAY'), 12),
+    customPerMinute: num(get('PHI_CUSTOM_PER_MINUTE'), 3),
     codeFailures: num(get('PHI_CODE_FAILURES'), 5),
     codeLockMinutes: num(get('PHI_CODE_LOCK_MINUTES'), 15),
     reattachSeconds: num(get('PHI_LIVE_REATTACH_SECONDS'), 45),
     budgetUsd: num(get('PHI_BUDGET_USD'), 30),
-    prices: { liveMinute: 0.023, sttSecond: 0.016 / 60 },
+    prices: {
+      liveMinute: 0.023,
+      sttSecond: 0.016 / 60,
+      // per token, as pipeline/phi_pipeline/config.py; an unknown model is priced as the dearest
+      text: {
+        'gemini-3.8-flash': { in: 0.75e-6, out: 3.75e-6 },
+        'gemini-2.5-pro': { in: 1.25e-6, out: 10e-6 },
+        default: { in: 1.25e-6, out: 10e-6 },
+      },
+    },
     workDir,
     ledgerFile: get('PHI_LEDGER_PATH') ?? join(workDir, 'usage.jsonl'),
     pipelineLedgerFile: join(PIPELINE_DIR, 'work', 'ledger.jsonl'),
@@ -256,6 +290,7 @@ export function describeConfig(c: Config) {
     access: accessMode(c),
     liveModel: c.liveModel, liveLocation: c.liveApi === 'gemini' ? 'gemini-api' : c.liveLocation,
     stt: `${c.sttModel}@${c.sttLocation} -> ${c.sttFallbackModel}@${c.sttFallbackLocation}`,
+    text: `${c.textModel} checked by ${c.textCheckModel}`,
     liveMinutesPerDay: c.liveMinutesPerDay, budgetUsd: c.budgetUsd,
     origins: c.allowedOrigins,
   };

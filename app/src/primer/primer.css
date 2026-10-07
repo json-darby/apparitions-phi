@@ -1,32 +1,28 @@
 /* The "How Thai works" primer. Built on global.css and shell.css. */
 
-/* docked: Back and Next stay at the foot of the screen on every page, long or short */
-.primer-foot {
-  margin-top: auto; padding-top: 22px; display: flex; flex-direction: column; gap: var(--s4);
-  position: sticky; bottom: 0; z-index: 4; padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  background: linear-gradient(to bottom, rgba(5, 5, 5, 0), var(--bg) 18px);
-}
-.primer-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.primer-btns .pill { width: 100%; }
+/* Back and Next are the step shell's (ui/steps.css); the page keeps the shell's rhythm */
+.primer-page { gap: 14px; }
+.steps.split .primer-page { gap: 20px; }
+.primer-title { text-wrap: balance; }
 
-/* one word per row: shape, name, the word, play */
-.primer-list { display: flex; flex-direction: column; }
+/* one word per row: the tone's name, the word, play; 56 high with a hairline under each */
+.primer-list { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
 .primer-tone {
-  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left;
-  background: none; border: 0; border-top: 1px solid var(--rule); padding: 12px 0; color: inherit; min-height: 64px;
+  display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; height: 56px;
+  background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 0; color: inherit;
 }
+.primer-tone.two { height: calc(16px + 11px * 1.4 + 2px + 22px * 1.3); }
 .primer-tone:disabled { cursor: default; }
 .primer-tone:hover:not(:disabled) { color: #fff; }
-.primer-tone > svg { flex: none; }
-.primer-tone .play { flex: none; color: var(--fg-2); }
+.primer-tone.on { background: var(--bg-2); margin: 0 -12px; padding: 0 12px; width: calc(100% + 24px); }
+.primer-tone-name { width: 64px; flex: none; font-size: 13px; color: var(--mut); }
+.primer-tone.on .primer-tone-name { color: var(--fg); font-weight: 600; }
+.primer-tone .play { flex: none; color: var(--fg); display: grid; place-items: center; width: 24px; }
+.primer-tone-text { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .primer-word { display: block; margin-top: 2px; }
-.primer-word .roman { font-size: 14px; }
-/* one row height: the label line and the word line; the word line scales as one piece */
-.primer-tone { height: calc(24px + 11px * 1.4 + 2px + 22px * 1.3); }
-.primer-tone-text { display: flex; flex-direction: column; min-width: 0; }
 .primer-word.fit { display: flex; font-size: 22px; line-height: 1.3; }
-.primer-word.fit .thai-m { font-size: 1em; }
-.primer-word.fit .roman { font-size: 0.64em; }
+.primer-word.fit .thai-m { font-size: 1em; display: inline-block; min-width: 2.45em; }
+.primer-word.fit .roman { font-size: 0.68em; color: var(--fg); }
 
 /* the five marks */
 .primer-marks { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }

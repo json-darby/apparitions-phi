@@ -10,7 +10,7 @@ import { lessonsUpTo } from '../content/lessons';
 import { sayForm } from '../content/repo';
 import { DRILLS } from '../path/pathway';
 import { chapterList, doneTasks } from '../street/state';
-import { Label, Screen, Seg, Sheet, TopBar } from '../ui/kit';
+import { Label, Row, Screen, Seg, Sheet, TopBar } from '../ui/kit';
 import { PlayIcon } from '../audio/SoundLayer';
 
 type Tab = 'words' | 'letters' | 'patterns' | 'lessons' | 'notes' | 'scenes' | 'drills' | 'moments';
@@ -56,51 +56,60 @@ export default function Library() {
   const lessons = lessonsUpTo(Math.min(day, settings.courseDays));
 
   return (
-    <Screen top={<TopBar mid="Library" parent="/" />}>
-      <Label>Everything you have met · replay any time</Label>
-      <h1 className="h-l" style={{ margin: '10px 0 18px' }}>Library</h1>
-      <Link to="/primer" className="row" style={{ textDecoration: 'none', marginBottom: 14 }}>
-        <span>How Thai works</span>
-        <span className="row-right">Tones, romanisation, polite endings</span>
-      </Link>
-      <div className="lib-tabs">
+    <Screen top={<TopBar mid="Library" parent="/" />} narrow className="library">
+      <div className="page-head" style={{ marginBottom: 16 }}>
+        <Label>{met.size} met · replay any time</Label>
+        <h1 className="h-page">Library</h1>
+      </div>
+      <Row to="/primer" right="Tones, romanisation, endings">How Thai works</Row>
+      <div className="lib-tabs" style={{ marginTop: 16 }}>
         <Seg label="Library section" value={tab} onChange={setTab} options={TABS} />
       </div>
 
       {tab === 'words' && (
-        <section style={{ marginTop: 18 }}>
-          <div className="hrow wrap" style={{ gap: 10, marginBottom: 12 }}>
-            <input type="text" placeholder="Search Thai, romanisation or English" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 360 }} aria-label="Search" />
+        <section style={{ marginTop: 16 }}>
+          <label className="search">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></svg>
+            <input type="search" placeholder="Thai, sound or English" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
+          </label>
+          <div className="hrow wrap" style={{ gap: 8, margin: '12px 0' }}>
             <Seg label="Show" value={show} onChange={setShow} options={[{ v: 'met', label: `Met · ${[...met].filter((r) => r.startsWith('item:')).length}` }, { v: 'all', label: 'Whole course' }]} />
           </div>
-          <div className="hrow wrap" style={{ gap: 10, marginBottom: 8 }}>
+          <div className="hrow wrap" style={{ gap: 8, marginBottom: 14 }}>
             <Link to="/review?free=1" className="pill small" style={{ textDecoration: 'none' }}>Practise, weakest first</Link>
             {engine.day() < settings.courseDays && <Link to={`/new?peek=${engine.day() + 1}`} className="pill small" style={{ textDecoration: 'none' }}>Sneak peek at tomorrow</Link>}
             <Link to="/listen" className="pill small" style={{ textDecoration: 'none' }}>Listen and repeat</Link>
           </div>
           {words.length === 0 && <p className="small">{show === 'met' ? 'Nothing met yet. New items is where you start.' : 'No matches.'}</p>}
-          {words.map(({ it, strength }) => {
-            const form = sayForm(it, settings.identity);
-            return (
-              <div key={it.id} className="row" style={{ cursor: 'default' }}>
-                <span className="hrow grow" style={{ gap: 12, minWidth: 0 }}>
+          <div className="word-list">
+            {words.map(({ it, strength }) => {
+              const form = sayForm(it, settings.identity);
+              const level = strength == null ? 0 : Math.max(1, Math.ceil(strength * 4));
+              return (
+                <div key={it.id} className="word-row">
+                  <Link to={`/new?ref=item:${it.id}`} className="word-text">
+                    <span className="word-top"><span className="thai" lang="th">{it.thai}</span> <span className="word-roman">{it.roman}</span></span>
+                    <span className="small">{it.en}</span>
+                  </Link>
+                  {strength == null ? (
+                    <span className="small num">Day {it.day}</span>
+                  ) : (
+                    <span className="strength" role="img" aria-label={`Strength ${pct(strength)}`} title={pct(strength)}>
+                      {[6, 9, 12, 15].map((h, i) => <i key={h} className={i < level ? 'on' : ''} style={{ height: h }} />)}
+                    </span>
+                  )}
                   <button
-                    className="iconbtn ghost"
-                    style={{ width: 36, height: 36 }}
-                    aria-label={`Play ${it.en}`}
+                    type="button"
+                    className="play-ring"
+                    aria-label={`Play ${it.roman}, ${it.en}`}
                     onClick={() => void sound.play({ ref: `item:${it.id}`, thai: form.thai, roman: form.roman, tones: it.tones, en: it.en })}
                   >
                     <PlayIcon size={14} />
                   </button>
-                  <Link to={`/new?ref=item:${it.id}`} style={{ textDecoration: 'none', minWidth: 0 }}>
-                    <span className="thai" lang="th" style={{ fontSize: 19 }}>{it.thai}</span>{' '}
-                    <span className="small">{it.roman} · {it.en}</span>
-                  </Link>
-                </span>
-                <span className="row-right num">{strength == null ? `Day ${it.day}` : pct(strength)}</span>
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 

@@ -34,6 +34,25 @@ export interface TaskScript {
   nodes: ScriptNode[];
 }
 
+/**
+ * One step of a School of the Night lesson. The app runs the lesson and sends
+ * the model one short directive per step, passed to it as a text turn; the
+ * model never decides what comes next. `say` and `expect` repeat what the
+ * text asks for, so mock mode can play the tutor without reading prose.
+ */
+export interface Directive {
+  /** the app's step id */
+  step: string;
+  /** the text turn the model gets */
+  text: string;
+  /** the Thai the tutor says in this step, if any */
+  say?: string;
+  /** the lines the learner may answer with, the right one first */
+  expect?: { lineId: string; thai: string }[];
+  /** say it slowly */
+  slower?: boolean;
+}
+
 export type ClientMsg =
   | {
       type: 'start';
@@ -47,10 +66,13 @@ export type ClientMsg =
       /** the task is an After Hours (18+) scene */
       adultTask: boolean;
       script?: TaskScript;
+      /** a School of the Night lesson: the tutor, driven by directives */
+      tutor?: boolean;
     }
   | { type: 'resume'; sessionId: string }
   | { type: 'talk'; on: boolean }
   | { type: 'text'; text: string }
+  | { type: 'directive'; directive: Directive }
   | { type: 'toolResult'; id: string; name: string; response: Record<string, unknown> }
   | { type: 'stop' };
 
@@ -71,4 +93,22 @@ export function isScript(x: unknown): x is TaskScript {
   const s = x as TaskScript;
   return !!s && typeof s.start === 'string' && Array.isArray(s.nodes) &&
     s.nodes.every((n) => typeof n?.id === 'string' && typeof n.thai === 'string' && Array.isArray(n.options));
+}
+
+export const MAX_DIRECTIVE_CHARS = 1200;
+
+/** A directive with its fields checked and trimmed to size, or null. */
+export function cleanDirective(x: unknown): Directive | null {
+  const d = x as Directive;
+  if (!d || typeof d.step !== 'string' || typeof d.text !== 'string' || !d.text.trim()) return null;
+  const out: Directive = { step: d.step.slice(0, 80), text: d.text.slice(0, MAX_DIRECTIVE_CHARS) };
+  if (typeof d.say === 'string' && d.say.trim()) out.say = d.say.slice(0, 200);
+  if (Array.isArray(d.expect)) {
+    out.expect = d.expect
+      .filter((e) => e && typeof e.lineId === 'string' && typeof e.thai === 'string')
+      .slice(0, 6)
+      .map((e) => ({ lineId: e.lineId.slice(0, 80), thai: e.thai.slice(0, 200) }));
+  }
+  if (d.slower === true) out.slower = true;
+  return out;
 }

@@ -109,7 +109,7 @@ export function StreetScene({ place, camera = 0.5, colour, style }: { place: str
   const rm = useReducedMotionSafe();
   const [scene] = useState(() => new StreetSceneDots());
   const pl = PLACES.find((p) => p.id === place);
-  scene.props = { place, camera, colour: colour ?? PLACE_COLOURS[place as PlaceId] ?? PLACE_COLOURS.default, sign: pl?.thaiSign ?? '' };
+  scene.props = { place, camera, colour: colour ?? PLACE_COLOURS[place as PlaceId] ?? (place === 'shop' ? '#9BE564' : PLACE_COLOURS.default), sign: pl?.thaiSign ?? '' };
   return <DotCanvas scene={scene} still={rm} label={`${pl?.name ?? place} in light`} style={{ width: '100%', minHeight: 180, ...style }} />;
 }
 

@@ -100,25 +100,24 @@
 .place-rail .on { color: var(--fg); }
 .place-rail .on i { background: var(--fg); border-color: var(--fg); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12); }
 .place-rail .done i { border-color: var(--good); }
-.street-stage { position: relative; flex: 1; min-height: 220px; overflow: hidden; touch-action: none; background: radial-gradient(ellipse 80% 60% at 50% 30%, #0d0b14 0%, #050505 70%); }
-.street-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; will-change: transform; }
+.street-stage { position: relative; flex: 1; min-height: 220px; overflow: hidden; touch-action: none; background: #050505; }
+.street-tags { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+/* name tags on the road: Inter label type, moved by the frame loop (transform only), faded at the stage edges */
+.street-tag {
+  position: absolute; left: 0; top: 0; will-change: transform, opacity; transition: opacity 0.25s var(--ease);
+  font-family: var(--font); font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; line-height: 1;
+  padding: 6px 11px 5px; border-radius: 999px; white-space: nowrap; background: rgba(5, 5, 5, 0.82);
+}
+.street-tag [lang='th'] { font-family: var(--thai); letter-spacing: 0; text-transform: none; font-size: 14px; }
+.street-tag { box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); }
+.street-tag.on { box-shadow: inset 0 0 0 1.5px currentColor, 0 0 18px -6px currentColor; }
+.street-tag.later { letter-spacing: 0.06em; }
+.street-tag.you { color: var(--fg); box-shadow: inset 0 0 0 1px var(--rule-strong); opacity: 1; }
 .street-sign {
   position: absolute; transform: translateX(-50%); border: 2px solid; border-radius: 6px; padding: 6px 14px 4px;
   font-family: var(--thai); font-weight: 600; font-size: 34px; white-space: nowrap; background: rgba(0, 0, 0, 0.55);
   text-shadow: 0 0 12px currentColor; box-shadow: 0 0 22px -4px currentColor, inset 0 0 14px -6px currentColor;
 }
-.street-sub { position: absolute; transform: translateX(-50%); border: 1px solid; border-radius: 4px; padding: 2px 8px; font-family: var(--thai); font-size: 18px; white-space: nowrap; opacity: 0.85; background: rgba(0, 0, 0, 0.5); }
-.street-name {
-  position: absolute; transform: translateX(-50%); font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap;
-  /* names sit over the dots: a dark backing keeps them readable */
-  padding: 3px 9px; border-radius: 999px; background: rgba(5, 5, 5, 0.78); text-shadow: 0 0 6px var(--bg);
-}
-.street-bubble {
-  position: absolute; transform: translateX(-50%); background: var(--fg); color: #050505; border-radius: 999px; padding: 8px 16px;
-  font-size: 17px; font-weight: 600; white-space: nowrap; animation: fadeIn 0.2s var(--ease);
-}
-.street-bubble::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 7px solid transparent; border-bottom: 0; border-top-color: var(--fg); }
-.street-you { position: absolute; transform: translateX(-50%); font-size: 12px; font-weight: 700; letter-spacing: 0.18em; padding: 2px 8px; border-radius: 999px; background: rgba(5, 5, 5, 0.78); }
 .street-controls { display: flex; align-items: center; gap: 16px; padding: 14px var(--gutter) calc(16px + env(safe-area-inset-bottom)); border-top: 1px solid var(--rule); }
 .street-controls .btns { display: flex; flex-direction: column; gap: 10px; flex: none; }
 .street-controls .hint { flex: 1; min-width: 0; font-size: 13px; color: var(--fg-2); }

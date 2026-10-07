@@ -326,6 +326,7 @@ LIPS = set([0, 13, 14, 17, 37, 39, 40, 61, 78, 80, 81, 82, 84, 87, 88, 91, 95, 1
 IRIS_R, IRIS_L = 468, 473          # subject's right / left iris centres
 # low-frequency anchors for the template correction: outline, cheeks, temples,
 # forehead, chin. Not the nose, eyes or lips: those stay the person's own (from the model).
+NOSE_LINE = [1, 4, 5, 195, 197, 6, 168]
 SHAPE_ANCHORS = sorted(set(FACE_OVAL + [50, 280, 205, 425, 117, 346, 123, 352, 187, 411, 147, 376, 10, 151, 9, 108, 337, 69, 299, 152, 175, 199, 54, 284, 21, 251, 162, 389, 227, 447, 116, 345]))
 
 
@@ -537,7 +538,11 @@ def portrait_depth(rgb: np.ndarray, alpha: np.ndarray, pts: np.ndarray, face: Fa
     rep.values["relief_vs_template"] = round(ratio, 3)
     # monocular nets compress the periphery (bas-relief); the native map must still
     # have real relief (>= 0.35 of anatomy) - the template corrects the rest below
-    rep.check("relief", 0.35 <= ratio <= 1.8, f"native nose-to-sides relief {rel:.0f} mm = {ratio:.2f} x the posed template's {t_rel:.0f} mm (0.35..1.8; flat or stretched otherwise)")
+    # a turned head is flattened harder (the far cheek runs toward the silhouette,
+    # where the net's bas-relief is strongest), so the floor drops with the yaw; the
+    # template correction and the corrected-order check below still have to hold
+    lo = 0.35 if abs(yaw) < 12 else 0.2
+    rep.check("relief", lo <= ratio <= 1.8, f"native nose-to-sides relief {rel:.0f} mm = {ratio:.2f} x the posed template's {t_rel:.0f} mm ({lo}..1.8 at yaw {yaw:.0f}; flat or stretched otherwise)")
     bg = alpha < 0.05
     fg = alpha > 0.95
     if bg.sum() > 0.02 * alpha.size:
@@ -560,7 +565,13 @@ def portrait_depth(rgb: np.ndarray, alpha: np.ndarray, pts: np.ndarray, face: Fa
     from scipy.interpolate import RBFInterpolator
 
     sel = np.zeros(468, bool)
-    sel[[i for i in SHAPE_ANCHORS if facing[i] > -0.35 and a_at[i] > 0.9]] = True
+    if abs(yaw) < 12:
+        sel[[i for i in SHAPE_ANCHORS if facing[i] > -0.35 and a_at[i] > 0.9]] = True
+    else:
+        # turned head: the far side of the outline is near the silhouette, where the
+        # map is flattest, and the spline overshoots between it and the nose; anchor on
+        # landmarks that face the camera, and pin the nose line itself
+        sel[[i for i in SHAPE_ANCHORS + NOSE_LINE if facing[i] > 0.1 and a_at[i] > 0.9]] = True
     corr_pts = pts[:468][sel] / np.array([w, h])
     resid = Ztpl[sel] - bilinear(Zs, pts[:468][sel])
     rep.values["correction_mm"] = {"mean": round(float(resid.mean()), 1), "p5": round(float(np.percentile(resid, 5)), 1), "p95": round(float(np.percentile(resid, 95)), 1)}

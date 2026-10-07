@@ -23,6 +23,8 @@ plan/
 research/
 designs/
 animation-demos/
+# source images and review sheets for the packs (large; the packs in app/public are what ships)
+generated/
 
 # deploy cache
 .firebase/

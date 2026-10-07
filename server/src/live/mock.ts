@@ -8,9 +8,16 @@
 // least 0.3 s of audio is "heard" as the first right reply of the current node
 // (a learner who said the right thing); shorter is heard as silence (stuck).
 // Typed text is matched against the options for real.
+//
+// MockTutor plays School of the Night's tutor the same way: it says the Thai
+// each directive gives, then listens. A held talk button is heard as the
+// directive's first expected line (0.8 s of audio or more), as a mumble that
+// fits nothing (0.3 to 0.8 s, so a miss can be tried), or as silence; it then
+// calls lineHeard. Asking for a repeat calls repeatAsked and says the line
+// again. Typed text is matched for real.
 
 import { similarity } from '../thai.ts';
-import type { ScriptNode, ScriptOption, TaskScript } from './protocol.ts';
+import type { Directive, ScriptNode, ScriptOption, TaskScript } from './protocol.ts';
 import type { Upstream, UpstreamEvents } from './upstream.ts';
 
 const MATCH = 0.75;
@@ -126,6 +133,10 @@ export class MockUpstream implements Upstream {
     this.later(() => this.respond(t));
   }
 
+  directive(d: Directive) {
+    this.text(d.text);
+  }
+
   toolResponse(id: string) {
     const w = this.waiting;
     if (!w || w.id !== id) return;
@@ -183,6 +194,134 @@ export class MockUpstream implements Upstream {
       return;
     }
     this.say(node.thai);
+  }
+
+  close() {
+    this.closed = true;
+  }
+}
+
+/** The learner asking to hear it again: พูดอีกที, ไม่เข้าใจ, พูดช้าๆ. */
+const ASK_AGAIN = /พูดอีกที|ไม่เข้าใจ|ช้า\s?ๆ|ช้าลง/;
+/** What a short press is heard as: fits no line. */
+export const MOCK_MUMBLE = 'เอ่อ';
+
+export class MockTutor implements Upstream {
+  connections = 0;
+  private expect: { lineId: string; thai: string }[] = [];
+  private last: string | null = null;
+  private bytes = 0;
+  private talking = false;
+  private waiting: { id: string; then: () => void } | null = null;
+  private seq = 0;
+  private closed = false;
+  private ev: UpstreamEvents;
+  private voice: 'f' | 'm';
+  private delay: number;
+
+  constructor(voice: 'f' | 'm', ev: UpstreamEvents, delayMs = 30) {
+    this.ev = ev;
+    this.voice = voice;
+    this.delay = delayMs;
+  }
+
+  async open() {
+    // the tutor waits for the first directive
+    this.connections++;
+  }
+
+  private later(fn: () => void) {
+    setTimeout(() => {
+      if (!this.closed) fn();
+    }, this.delay);
+  }
+
+  private say(text: string) {
+    const pcm = synthVoice(text, this.voice);
+    for (let o = 0; o < pcm.length; o += 9600) this.ev.audio(pcm.subarray(o, o + 9600));
+    this.ev.outputText(text, true);
+    this.ev.turnComplete();
+  }
+
+  private call(name: string, args: Record<string, unknown>, then: () => void) {
+    const id = `mock-${++this.seq}`;
+    this.waiting = { id, then };
+    this.ev.toolCall([{ id, name, args }]);
+  }
+
+  directive(d: Directive) {
+    this.expect = d.expect ?? [];
+    const say = d.say;
+    if (say) this.last = say;
+    this.later(() => (say ? this.say(say) : this.ev.turnComplete()));
+  }
+
+  activity(on: boolean) {
+    if (on) {
+      this.talking = true;
+      this.bytes = 0;
+      return;
+    }
+    if (!this.talking) return;
+    this.talking = false;
+    const seconds = this.bytes / 32000;
+    const heard = seconds >= 0.8 ? this.expect[0]?.thai ?? '' : seconds >= 0.3 ? MOCK_MUMBLE : '';
+    this.later(() => {
+      this.ev.inputText(heard, true);
+      this.heard(heard);
+    });
+  }
+
+  audio(pcm: Buffer) {
+    if (this.talking) this.bytes += pcm.length;
+  }
+
+  text(t: string) {
+    // a direction without a directive's fields: say the Thai it quotes
+    if (t.startsWith('[App:')) {
+      const quoted = t.match(/"([^"]*[฀-๿][^"]*)"/)?.[1];
+      if (quoted) {
+        this.last = quoted;
+        this.later(() => this.say(quoted));
+      }
+      return;
+    }
+    this.later(() => this.heard(t));
+  }
+
+  toolResponse(id: string) {
+    const w = this.waiting;
+    if (!w || w.id !== id) return;
+    this.waiting = null;
+    this.later(w.then);
+  }
+
+  private heard(said: string) {
+    if (this.waiting) return;
+    for (const [re, category] of UNSAFE) {
+      if (re.test(said)) {
+        this.call('flagUnsafe', { category, note: 'mock' }, () => this.ev.turnComplete());
+        return;
+      }
+    }
+    let top: { lineId: string; thai: string } | null = null;
+    let score = 0;
+    for (const e of this.expect) {
+      const s = similarity(said, e.thai);
+      if (s > score) {
+        score = s;
+        top = e;
+      }
+    }
+    if (said.trim() && (!top || score < MATCH) && ASK_AGAIN.test(said)) {
+      const slower = /ช้า/.test(said);
+      this.call('repeatAsked', { slower }, () => (this.last ? this.say(this.last) : this.ev.turnComplete()));
+      return;
+    }
+    const right = !!top && score >= MATCH;
+    const verdict = !said.trim() ? 'none' : right ? 'right' : 'wrong';
+    const lineId = (right ? top?.lineId : this.expect[0]?.lineId) ?? '';
+    this.call('lineHeard', { lineId, verdict, heardThai: said }, () => this.ev.turnComplete());
   }
 
   close() {

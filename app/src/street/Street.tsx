@@ -1,39 +1,73 @@
-// The Street: one night street, side-on. Six places with Thai signs, the people
-// who work there (faint until you know them), and you. Phone: stick plus Talk
-// and Read sign. Tablet: a wider street. Desktop: the widest view, WASD or
-// arrows to walk, E to talk, R to read a sign, and a task panel.
+// The Street: one night street, side-on, from the street photograph drawn in
+// dots. Six places with Thai signs on their boards, the people who work there,
+// and you, at life scale. Phone: stick plus Talk and Read sign. Tablet: a wider
+// street. Desktop: the widest view, WASD or arrows to walk, E to talk, R to
+// read a sign, and a task panel.
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react';
-import { Container, Graphics } from 'pixi.js';
 import { useApp } from '../app/context';
 import { useDevice } from '../app/device';
 import { Link, navigate } from '../app/router';
-import { StreetScene } from '../anim';
-import { PLACES } from '../content/seed';
+import { hexToRgb } from '../anim/core/math';
+import { loadManifest, loadPair } from '../anim/packs';
+import { CAST, PLACES } from '../content/seed';
 import { STREET_SIGNS, taskById, tasksFor, type StreetTaskBuilt } from '../content/street-seed';
 import type { PlaceId } from '../content/types';
-import { usePixi } from '../games/shared/pixi';
 import { shuffle } from '../games/shared/drill';
 import { useKeys } from '../input/keys';
 import { KeyHints, Label, Logo, Row, Sheet } from '../ui/kit';
 import { FitText } from '../ui/FitText';
+import { GROUND_Y, KERB_Y, PX_PER_M, SHOP_LIGHTS, smooth, SIGN_BOARDS, STREET_W, THEO_SHOP, WALK_MAX, WALK_MIN, heightPx, layoutLabels, paceTo, viewFor, worldX } from './geometry';
 import { HudStat, placeColour, useStreet, useToast } from './parts/common';
-import { dotFigure, hashStr, rng } from './parts/dots';
+import { figureCanvas, hashStr } from './parts/dots';
+import { Street2D, StreetGL, figureRows, type FigureDraw, type LightDraw, type SignDef, type StreetRenderer, type View } from './parts/streetGL';
 import { clarityFor, repOf, totalRep, updateStreet, REP_MAX } from './state';
+import { BodyRaster, WALK_TILE, type Look } from './body/body';
+import { Gait } from './body/gait';
+import { FRAME } from './body/skeleton';
+import { WALKS } from './body/walkData';
+import { atlasKey, atlasRect, idleLife, loadAtlas, loadBodies, mirrorFor, newCast, stepCast, type BodiesIndex, type CastState } from './bodies';
 import './street.css';
 
-const BH = 600; // world units, baseline height
-const W0 = 2300; // world width
-const GROUND = 520;
-const SPEED = 330; // units per second
-const NEAR = 120;
-const PERSON_DX = 70; // people stand a little right of their sign, so you do not stand on them
+const W0 = STREET_W;
+const NEAR = 100; // about 1.3 m either side of a place; the nearest place wins
+const PERSON_DX = 60; // people stand 0.8 m right of the middle of their shop, so you never stand on them
+const THEO_LINE = "Theo's shop opens later in the course.";
+
+/** Heights in metres: every adult between 1.65 and 1.80. */
+const HEIGHT_M: Record<string, number> = { you: 1.73, nok: 1.65, ploy: 1.67, mai: 1.68, fah: 1.69, ton: 1.75, lek: 1.76, bank: 1.79, theo: 1.8 };
+const BROAD = new Set(['lek', 'ton', 'bank', 'theo']);
+const YOU_LOOK: Record<'m' | 'f', Look> = { m: { sex: 'm', build: 1, hair: 'short' }, f: { sex: 'f', build: 0.96, hair: 'bob' } };
 
 const ORDER = [...PLACES].sort((a, b) => a.x - b.x);
 const placeX = (id: PlaceId) => PLACES.find((p) => p.id === id)!.x * W0;
+const THEO_X = THEO_SHOP.x * W0;
+
+/**
+ * Where each cast member stands: on the lit patch in front of their place. Lek
+ * stands left of the market's middle (to the right is the taxi rank), Ton by
+ * his taxi, Bank beside Fah, Theo at his shop.
+ */
+const STANDS: { who: string; place: PlaceId | 'theo'; x: number }[] = [
+  ...PLACES.map((p) => ({ who: p.person, place: p.id as PlaceId | 'theo', x: p.x * W0 + (p.id === 'market' ? -56 : p.id === 'taxi' ? 55 : PERSON_DX) })),
+  { who: 'bank', place: 'bar', x: placeX('bar') + PERSON_DX + 56 },
+  { who: 'theo', place: 'theo', x: THEO_X + PERSON_DX },
+];
+/** The person you talk to at each place (Bank stands with Fah but has no tag of his own). */
+const TAGGED = STANDS.filter((s) => s.who !== 'bank');
+/** Where you stop to talk to each person (the walk-to point of their place): they turn to face it. */
+const STOP_X: Record<string, number> = Object.fromEntries(STANDS.map((s) => [s.who, s.place === 'theo' ? THEO_X : placeX(s.place)]));
+
+const base = () => {
+  try {
+    return (import.meta.env?.BASE_URL as string | undefined) ?? './';
+  } catch {
+    return './';
+  }
+};
 
 export default function Street() {
-  const { store, engine, settings, content } = useApp();
+  const { store, engine, settings, content, reducedMotion } = useApp();
   const { device, touch } = useDevice();
   const [street] = useStreet();
   const day = engine.day();
@@ -41,135 +75,150 @@ export default function Street() {
   const open = tasks.filter((t) => t.day <= day && (!t.adult || settings.adult));
   const next = open.find((t) => !street.done.includes(t.id)) ?? null;
   const [near, setNear] = useState<PlaceId | null>(null);
+  const [atTheo, setAtTheo] = useState(false);
   const [toast, say] = useToast();
   const [sign, setSign] = useState<PlaceId | null>(null);
 
-  const px = useRef((street.at ?? 0.03) * W0);
+  const px = useRef(Math.max(WALK_MIN, Math.min(WALK_MAX, (street.at ?? 0.03) * W0)));
   const target = useRef<number | null>(null);
   const keys = useRef({ left: false, right: false });
   const stick = useRef(0);
   const nearRef = useRef<PlaceId | null>(null);
-  const worldDom = useRef<HTMLDivElement>(null);
-  const cam = useRef({ x: 0, s: 1 });
+  const theoRef = useRef(false);
+  const host = useRef<HTMLDivElement>(null);
+  const tags = useRef(new Map<string, HTMLDivElement>());
+  const youTag = useRef<HTMLDivElement>(null);
+  const view = useRef<View>({ s: 1, left: 0, top: 0, w: 1, h: 1 });
 
-  // reputation snapshot for the figures (the street rebuilds on return from a talk)
-  const reps = useMemo(() => Object.fromEntries(PLACES.map((p) => [p.id, repOf(street, p.person)])), [street]);
+  // reputation and the 18+ setting, read live by the frame loop
+  const reps = useMemo(() => Object.fromEntries(CAST.map((c) => [c.id, repOf(street, c.id)])), [street]);
+  const live = useRef({ reps, adult: settings.adult, motion: !reducedMotion, identity: settings.identity });
+  live.current = { reps, adult: settings.adult, motion: !reducedMotion, identity: settings.identity };
 
-  const { host } = usePixi((app, el) => {
-    const far = new Container();
-    const world = new Container();
-    app.stage.addChild(far, world);
+  // the sign words: each place's name on its board, and the small sign in its shopfront
+  const signs = useMemo<SignDef[]>(
+    () =>
+      PLACES.flatMap((p) => {
+        const sub = content.item(STREET_SIGNS[p.id].item);
+        const col = placeColour(p.id);
+        return [{ text: p.thaiSign, rect: SIGN_BOARDS[p.id].main, colour: col }, ...(sub ? [{ text: sub.thai, rect: SIGN_BOARDS[p.id].sub, colour: col }] : [])];
+      }),
+    [content],
+  );
+  const signsRef = useRef(signs);
+  signsRef.current = signs;
+  const renderer = useRef<StreetRenderer | null>(null);
 
-    // far: dark buildings with a few lit windows, moving at half speed
-    const r = rng(7);
-    const fb = new Graphics();
-    for (let x = -200; x < W0 * 0.6 + 1400; x += 60 + r() * 90) {
-      const w = 50 + r() * 110;
-      const h = 160 + r() * 260;
-      fb.rect(x, GROUND - 80 - h, w, h).fill({ color: '#0b0b12', alpha: 0.9 });
-      for (let k = 0; k < 6; k++) {
-        if (r() < 0.5) continue;
-        fb.rect(x + 8 + r() * (w - 16), GROUND - 80 - h + 10 + r() * (h - 30), 3, 4).fill({ color: r() < 0.5 ? '#FFB03A' : '#2E9BFF', alpha: 0.25 + r() * 0.35 });
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    let canvas = document.createElement('canvas');
+    const fit = (c: HTMLCanvasElement) => {
+      c.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+      el.appendChild(c);
+    };
+    fit(canvas);
+    let r: StreetRenderer | null = StreetGL.create(canvas);
+    if (!r) {
+      // a canvas that tried WebGL cannot give a 2D context: start again with a fresh one
+      canvas.remove();
+      canvas = document.createElement('canvas');
+      fit(canvas);
+      r = new Street2D(canvas);
+    }
+    const R = r;
+    renderer.current = R;
+    let dead = false;
+
+    // the street photograph (brightness + depth); the 2D fallback draws the plain picture
+    loadManifest().then((m) => {
+      const ref = m.scenes.street ?? { image: 'scenes/street.webp', depth: 'scenes/street.depth.webp' };
+      if (R.kind === 'gl')
+        loadPair(ref).then((c) => {
+          if (c && !dead) R.setStreet(c, null);
+        });
+      else {
+        const im = new Image();
+        im.onload = () => !dead && R.setStreet({ canvas, px: new Uint8ClampedArray(0), w: 0, h: 0 }, im);
+        im.src = `${base()}packs/${ref.image}`;
       }
-    }
-    far.addChild(fb);
+    });
+    R.setTexture('fig:f', figureCanvas(0.94));
+    R.setTexture('fig:m', figureCanvas(1.08));
 
-    // floor
-    const floor = new Graphics();
-    floor.rect(-400, GROUND, W0 + 800, BH - GROUND + 200).fill({ color: '#07070a' });
-    floor.moveTo(-400, GROUND).lineTo(W0 + 400, GROUND).stroke({ color: '#ffffff', alpha: 0.18, width: 1 });
-    for (let i = 1; i < 6; i++) {
-      const y = GROUND + i * i * 5;
-      floor.moveTo(-400, y).lineTo(W0 + 400, y).stroke({ color: '#ffffff', alpha: 0.05, width: 1 });
-    }
-    world.addChild(floor);
+    // the people from their photos: until a person's atlas is in, they keep the stand-in figure
+    let bodies: BodiesIndex | null = null;
+    const atlasReady = new Set<string>();
+    loadBodies().then(async (ix) => {
+      if (dead) return;
+      bodies = ix;
+      // nearest first, one at a time, so loading never stalls a frame
+      const order = STANDS.filter((s) => ix.people[s.who]).sort((a, b) => Math.abs(a.x - px.current) - Math.abs(b.x - px.current));
+      for (const s of order) {
+        const a = ix.people[s.who];
+        for (const [key, rel] of [[`photo:${s.who}`, a.image], ...Object.entries(a.alt).map(([n, v]) => [`photo:${s.who}-${n}`, v.image])] as [string, string][]) {
+          const im = await loadAtlas(rel);
+          if (dead) return;
+          if (im) {
+            R.setTexture(key, im, true);
+            atlasReady.add(key);
+          }
+        }
+      }
+    });
+    const cast = new Map<string, { st: CastState; ready: number }>(STANDS.map((s) => [s.who, { st: newCast(), ready: 0 }]));
 
-    // each place: light falling from the sign, a pool on the floor, the person
-    const people: { c: Container; seed: number }[] = [];
-    for (const p of PLACES) {
-      const x = p.x * W0;
-      const col = placeColour(p.id);
-      const light = new Graphics();
-      light.poly([x - 90, 112, x + 90, 112, x + 150, GROUND, x - 150, GROUND]).fill({ color: col, alpha: 0.07 });
-      light.poly([x - 60, 112, x + 60, 112, x + 90, GROUND, x - 90, GROUND]).fill({ color: col, alpha: 0.06 });
-      light.ellipse(x, GROUND + 26, 190, 26).fill({ color: col, alpha: 0.1 });
-      light.blendMode = 'add';
-      world.addChild(light);
-      const seed = hashStr(p.person);
-      const fig = dotFigure({ colour: col, clarity: clarityFor(reps[p.id] ?? 0), seed, height: 240, build: p.person === 'lek' || p.person === 'ton' || p.person === 'bank' ? 1.08 : 0.94 });
-      fig.x = x + PERSON_DX;
-      fig.y = GROUND + 6;
-      world.addChild(fig);
-      people.push({ c: fig, seed });
-    }
-    // a second figure at the bar: Bank beside Fah
-    {
-      const x = placeX('bar') + PERSON_DX + 78;
-      const fig = dotFigure({ colour: placeColour('bar'), clarity: clarityFor(repOf(street, 'bank')), seed: hashStr('bank'), height: 236, build: 1.08 });
-      fig.x = x;
-      fig.y = GROUND + 2;
-      fig.alpha = 0.85;
-      world.addChild(fig);
-      people.push({ c: fig, seed: 99 });
-    }
+    const size = () => R.resize(el.clientWidth, el.clientHeight, Math.min(2, window.devicePixelRatio || 1));
+    size();
+    const ro = new ResizeObserver(size);
+    ro.observe(el);
 
-    // you
-    const you = dotFigure({ colour: '#E8E8E8', clarity: 1, seed: 1234, height: 230 });
-    const ring = new Graphics().ellipse(0, 0, 40, 9).stroke({ color: '#ffffff', alpha: 0.8, width: 2 });
-    ring.y = GROUND + 34;
-    world.addChild(ring, you);
-
+    const youH = heightPx(HEIGHT_M.you);
+    // you: a body walked by the stride tracked from the reference video (m or f by speaking identity)
+    let who: 'm' | 'f' = live.current.identity === 'f' ? 'f' : 'm';
+    let gait = new Gait(WALKS[who], FRAME[who], px.current);
+    const youRaster = new BodyRaster(WALK_TILE);
+    const T = WALK_TILE;
+    const tileFr = { head: (T.y1 - 1) / (T.y1 - T.y0), feet: T.y1 / (T.y1 - T.y0), centre: -T.x0 / (T.x1 - T.x0) };
+    let camC = px.current;
+    // the camera moves in (up to 1.6x) when you stop with someone, so they are big enough to read
+    let push = 0;
+    let pushX = 0;
     let t = 0;
-    let facing = 1;
-    let lastW = 0;
-    let lastH = 0;
-    const tick = () => {
-      if (el.clientWidth !== lastW || el.clientHeight !== lastH) {
-        lastW = el.clientWidth;
-        lastH = el.clientHeight;
-        app.resize();
+    let last = performance.now();
+    let raf = 0;
+    const full: [number, number, number, number] = [0, 0, 1, 1];
+    const white = hexToRgb('#E8E8E8');
+
+    const perf = { n: 0, ms: 0, worst: 0 };
+    // one step of the street's life: your walk, the camera, where you are, how the people react
+    const tick = (dt: number) => {
+      const L = live.current;
+      if (L.motion) t += dt;
+
+      // walking: the wanted pace goes to the gait, which moves you by what your feet push
+      const nowWho: 'm' | 'f' = L.identity === 'f' ? 'f' : 'm';
+      if (nowWho !== who && gait.standing) {
+        who = nowWho;
+        gait = new Gait(WALKS[who], FRAME[who], px.current);
       }
-      const dt = Math.min(0.05, app.ticker.deltaMS / 1000);
-      t += dt;
-      // input
-      let dx = (keys.current.right ? 1 : 0) - (keys.current.left ? 1 : 0) + stick.current;
-      if (dx !== 0) target.current = null;
+      const step = (gait.stride / 2) * youH; // one step, world px
+      let want = (keys.current.right ? 1 : 0) - (keys.current.left ? 1 : 0) + stick.current;
+      if (want !== 0) target.current = null;
       if (target.current != null) {
         const d = target.current - px.current;
-        if (Math.abs(d) < 6) target.current = null;
-        else dx = Math.sign(d);
+        // close enough: stop on the next step (a stop takes about half a step)
+        want = Math.abs(d) < step * 0.55 ? 0 : paceTo(d, 120);
+        if (want === 0 && gait.standing) target.current = null;
       }
-      dx = Math.max(-1, Math.min(1, dx));
-      px.current = Math.max(60, Math.min(W0 - 60, px.current + dx * SPEED * dt));
-      if (dx !== 0) facing = dx > 0 ? 1 : -1;
+      want = Math.max(-1, Math.min(1, want));
+      if ((want > 0 && px.current > WALK_MAX - step * 0.6) || (want < 0 && px.current < WALK_MIN + step * 0.6)) want = 0;
+      gait.x = px.current;
+      gait.update(dt, want, youH, L.motion);
+      px.current = Math.max(WALK_MIN, Math.min(WALK_MAX, gait.x));
 
-      // camera
-      const H = app.screen.height;
-      const W = app.screen.width;
-      const s = H / BH;
-      const view = W / s;
-      let cx = view >= W0 ? (W0 - view) / 2 : Math.max(0, Math.min(W0 - view, px.current - view / 2));
-      cx = Number.isFinite(cx) ? cx : 0;
-      cam.current = { x: cx, s };
-      world.scale.set(s);
-      world.x = -cx * s;
-      far.scale.set(s);
-      far.x = -cx * s * 0.5;
-      if (worldDom.current) worldDom.current.style.transform = `translate(${-cx * s}px, 0) scale(${s})`;
-
-      // figures breathe
-      for (const p of people) {
-        p.c.scale.y = 1 + Math.sin(t * 1.4 + p.seed) * 0.008;
-        p.c.alpha = 0.92 + Math.sin(t * 2.1 + p.seed) * 0.06;
-      }
-      you.x = px.current;
-      you.y = GROUND + 30 - (dx !== 0 ? Math.abs(Math.sin(t * 9)) * 5 : 0);
-      you.scale.x = facing;
-      ring.x = px.current;
-      if (worldDom.current) {
-        const tag = worldDom.current.querySelector<HTMLElement>('.street-you');
-        if (tag) tag.style.left = `${px.current}px`;
-      }
+      // camera: follows you gently; while it is in, it frames you and the person you are with
+      camC += (px.current + pushX * push - camC) * (1 - Math.exp(-dt * 3.5));
 
       // who is near
       let best: PlaceId | null = null;
@@ -181,16 +230,180 @@ export default function Street() {
           best = p.id;
         }
       }
+      const theo = !best && Math.abs(THEO_X - px.current) < NEAR;
       if (best !== nearRef.current) {
         nearRef.current = best;
         setNear(best);
       }
+      if (theo !== theoRef.current) {
+        theoRef.current = theo;
+        setAtTheo(theo);
+      }
+      const withWho = best ? STANDS.find((x) => x.place === best) : theo && L.adult ? STANDS.find((x) => x.place === 'theo') : undefined;
+      const atStop = !!withWho && gait.standing && L.motion;
+      if (withWho) pushX = (withWho.x - px.current) * 0.5;
+      push += ((atStop ? 1 : 0) - push) * (1 - Math.exp(-dt * 2.4));
+
+      // the people: they notice you as you come near and greet you when you stop at their place
+      for (const s of STANDS) {
+        const atlas = bodies?.people[s.who];
+        if (!atlas) continue;
+        const stop = STOP_X[s.who];
+        const atPlace = s.place === 'theo' ? theoRef.current : nearRef.current === s.place;
+        stepCast(cast.get(s.who)!.st, { dxM: (px.current - s.x) / PX_PER_M, gaze: stop >= s.x ? 1 : -1, atPlace, stopped: gait.standing, motion: L.motion }, dt, atlas);
+      }
     };
-    app.ticker.add(tick);
+
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+      const t0 = performance.now();
+      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+      last = now;
+      tick(dt);
+      // development only: jump somewhere or run the street forward (for checking it frame by frame)
+      if (import.meta.env.DEV) {
+        const ds = document.documentElement.dataset;
+        if (ds.streetGoto) {
+          px.current = gait.x = camC = Number(ds.streetGoto);
+          target.current = null;
+          delete ds.streetGoto;
+        }
+        if (ds.streetWarp) {
+          const n = Math.min(1200, Math.round(Number(ds.streetWarp) * 60));
+          delete ds.streetWarp;
+          for (let k = 0; k < n; k++) tick(1 / 60);
+        }
+      }
+      const L = live.current;
+
+      // the view onto the street
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      const vw = viewFor(w, h, camC, youH, 74, push);
+      view.current = { ...vw, w, h };
+
+      // labels: one row of names on the road under the kerb, the YOU tag below it;
+      // read every width first, then place them (no layout thrash), never overlapping
+      const row = (KERB_Y - vw.top) * vw.s + 16;
+      const items = TAGGED.map((s) => {
+        const el2 = tags.current.get(s.who);
+        const x = (s.x - vw.left) * vw.s;
+        return { el: el2, x, w: el2 ? el2.offsetWidth : 0, prio: el2?.dataset.on === '1' ? 2 : 1 };
+      });
+      const shown = layoutLabels(items, w);
+      items.forEach((it, i) => {
+        if (!it.el) return;
+        it.el.style.transform = `translate(${it.x}px, ${row}px) translateX(-50%)`;
+        it.el.style.opacity = String(shown[i]);
+      });
+      if (youTag.current) {
+        const yx = (px.current - vw.left) * vw.s;
+        youTag.current.style.transform = `translate(${yx}px, ${row + 38}px) translateX(-50%)`;
+      }
+
+      // the lights: a slow flicker in the bar's neon, Theo's shop dim while 18+ is off
+      const flick = L.motion ? 1 - 0.1 * Math.max(0, Math.sin(t * 23) * Math.sin(t * 2.3 + 1) * Math.sin(t * 0.7)) : 1;
+      const lights: LightDraw[] = SHOP_LIGHTS.map((l) => {
+        const colour = l.id === 'theo' ? THEO_SHOP.colour : l.id === 'lamp' ? '#8FC2FF' : placeColour(l.id);
+        let level = 1;
+        if (l.id === 'bar') level = flick;
+        if (l.id === 'pharmacy' && L.motion) level = 0.97 + 0.03 * Math.sin(t * 1.9);
+        if (l.id === 'theo') level = L.adult ? 1 : 0.3;
+        if (l.id === 'taxi') level = 0.7;
+        return { rect: l.rect, reach: l.reach, colour: hexToRgb(colour), level };
+      });
+      const signLevels = signsRef.current.map((s) => (s.colour === placeColour('bar') ? flick : 1));
+
+      // the people: from their photos (idle, notice as you come near, a greeting when you stop
+      // at their place), or the stand-in figure until their photo has loaded
+      const figures: FigureDraw[] = [];
+      for (const s of STANDS) {
+        if (s.who === 'theo' && !L.adult) continue;
+        const seed = hashStr(s.who) % 1000;
+        const hPx = heightPx(HEIGHT_M[s.who] ?? 1.7);
+        // the light of their place: a slight wash on their photo (and the stand-in's tint)
+        const colour = hexToRgb(s.place === 'theo' ? THEO_SHOP.colour : placeColour(s.place));
+        const clarity = clarityFor(L.reps[s.who] ?? 0);
+        const alpha = L.motion ? 0.93 + Math.sin(t * 2.1 + seed) * 0.05 : 0.96;
+        const c = cast.get(s.who)!;
+        const atlas = bodies?.people[s.who];
+        // Fah's photos without the jacket are 18+; with 18+ off only the jacket set will do
+        const key = atlasKey(s.who, atlas, L.adult);
+        const ok = !!key && atlasReady.has(key);
+        c.ready = ok ? Math.min(1, c.ready + dt * 2.5) : 0;
+        if (atlas) {
+          const flip = mirrorFor(atlas.looks, s.x, STOP_X[s.who]);
+          if (ok) {
+            const f = Math.max(0, Math.min(atlas.frames - 1, Number.isFinite(c.st.f) ? c.st.f : atlas.keys.idle));
+            const i = Math.min(atlas.frames - 1, Math.floor(f));
+            const p = f - i;
+            // a re-form join (the greeting): the figure re-forms as an apparition rather than cross-fading
+            // (with reduced motion, a plain quick cross-fade)
+            const reform = atlas.reform.includes(i) && p > 0;
+            const life = L.motion ? idleLife(t, seed, f, atlas.keys.idle) : { sway: 0, breath: 0 };
+            figures.push({
+              // RIFE in-betweens cross-fade over the middle half of each step only, so a turning head is
+              // never seen twice for long, yet nothing snaps
+              tex: key!, a: atlasRect(atlas, i), b: atlasRect(atlas, Math.min(atlas.frames - 1, i + 1)),
+              mix: reform ? p : smooth(0.25, 0.75, p), reform: reform && L.motion,
+              x: s.x, foot: GROUND_Y, h: hPx,
+              head: atlas.head, feet: atlas.feet, centre: atlas.centre, aspect: atlas.tile[0] / atlas.tile[1], flip,
+              colour, clarity, alpha: alpha * c.ready, soft: true, photo: true,
+              sway: life.sway * hPx, breath: life.breath * hPx,
+            });
+          }
+        }
+        if (c.ready < 1) {
+          const breathe = L.motion ? 1 + Math.sin(t * 1.4 + seed) * 0.005 : 1;
+          figures.push({
+            tex: BROAD.has(s.who) ? 'fig:m' : 'fig:f',
+            a: full, b: full, mix: 0,
+            x: s.x, foot: GROUND_Y, h: hPx * breathe,
+            head: 0, feet: 1, centre: 0.5, aspect: 0.4, flip: false,
+            colour, clarity, alpha: alpha * (1 - c.ready),
+          });
+        }
+      }
+      // you: the walking body, drawn into a small image each frame at the dot grid's resolution
+      const gridRows = figureRows(youH * (T.y1 - T.y0), vw.s, Math.min(2, window.devicePixelRatio || 1));
+      youRaster.resize(Math.min(300, Math.max(48, Math.round(gridRows * 1.3))));
+      youRaster.render(gait.pose, YOU_LOOK[who], gait.theta);
+      R.setPixels('body:you', youRaster.w, youRaster.h, youRaster.data);
+      figures.push({
+        tex: 'body:you', a: full, b: full, mix: 0,
+        x: px.current, foot: GROUND_Y, h: youH,
+        head: tileFr.head, feet: tileFr.feet, centre: tileFr.centre, aspect: youRaster.aspect, flip: false,
+        colour: white, clarity: 1, alpha: 1, ring: 1, soft: true,
+      });
+
+      R.render({ view: view.current, t, motion: L.motion, lights, signs: signLevels, figures });
+      // development only: the frame's script time, for checking the street stays well inside a 60 fps budget
+      if (import.meta.env.DEV) {
+        const ms = performance.now() - t0;
+        perf.n++;
+        perf.ms += ms;
+        perf.worst = Math.max(perf.worst, ms);
+        if (perf.n === 60) {
+          document.documentElement.dataset.streetFrameMs = `${(perf.ms / 60).toFixed(2)} avg, ${perf.worst.toFixed(2)} worst, ${figures.length} figures`;
+          perf.n = perf.ms = perf.worst = 0;
+        }
+      }
+    };
+    raf = requestAnimationFrame(frame);
     return () => {
-      app.ticker.remove(tick);
+      dead = true;
+      renderer.current = null;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      R.dispose();
+      canvas.remove();
     };
   }, []);
+
+  // the small signs come from the loaded course: redraw them when it changes
+  useEffect(() => {
+    renderer.current?.setSigns(signs);
+  }, [signs]);
 
   // remember where you stood
   useEffect(
@@ -201,6 +414,10 @@ export default function Street() {
   );
 
   const talk = () => {
+    if (theoRef.current) {
+      say(THEO_LINE);
+      return;
+    }
     const at = nearRef.current;
     if (!at) {
       say('Walk up to someone first.');
@@ -256,8 +473,11 @@ export default function Street() {
 
   const onStagePointer = (e: RPointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = cam.current.x + (e.clientX - rect.left) / cam.current.s;
-    target.current = Math.max(60, Math.min(W0 - 60, x));
+    const x = worldX(e.clientX - rect.left, view.current);
+    target.current = Math.max(WALK_MIN, Math.min(WALK_MAX, x));
+    // a tap on Theo's shopfront
+    const [x0, , x1] = THEO_SHOP.front;
+    if (x >= x0 && x <= x1) say(THEO_LINE);
   };
 
   const nearPlace = near ? PLACES.find((p) => p.id === near)! : null;
@@ -303,35 +523,49 @@ export default function Street() {
     </div>
   );
 
+
   const stage = (
     <div className="street-stage" onPointerDown={onStagePointer}>
-      <StreetScene place={near ?? 'street'} camera={px.current / W0} colour={near ? placeColour(near) : undefined} style={{ position: 'absolute', inset: 0 }} />
       <div ref={host} style={{ position: 'absolute', inset: 0 }} />
-      <div className="street-world" ref={worldDom} style={{ width: W0, height: BH }} aria-hidden>
-        {PLACES.map((p) => {
-          const x = p.x * W0;
-          const col = placeColour(p.id);
-          const person = content.person(p.person)!;
-          const sub = content.item(STREET_SIGNS[p.id].item);
+      {/* name tags on the road under each person, placed by the frame loop so they never overlap */}
+      <div className="street-tags" aria-hidden>
+        {TAGGED.map((s) => {
+          const isTheo = s.who === 'theo';
+          const on = isTheo ? atTheo : near === s.place;
+          if (isTheo && !settings.adult && !atTheo) return null;
+          const name = content.person(s.who)?.name ?? s.who;
+          const col = isTheo ? THEO_SHOP.colour : placeColour(s.place as PlaceId);
           return (
-            <div key={p.id}>
-              <div className="street-sign" lang="th" style={{ left: x, top: 34, color: col, borderColor: col }}>{p.thaiSign}</div>
-              {sub && <div className="street-sub" lang="th" style={{ left: x - 100, top: 126, color: col, borderColor: col }}>{sub.thai}</div>}
-              <div className="street-name" style={{ left: x + PERSON_DX, top: 240, color: col, opacity: 0.65 + clarityFor(reps[p.id]) * 0.35 }}>
-                {person.name} · {person.role}
-              </div>
-              {near === p.id && (
-                <div className="street-bubble" style={{ left: x + PERSON_DX, top: 186 }}>
-                  <span lang="th">คุย</span> · Talk
-                </div>
+            <div
+              key={s.who}
+              ref={(e) => {
+                if (e) tags.current.set(s.who, e);
+                else tags.current.delete(s.who);
+              }}
+              data-on={on ? '1' : '0'}
+              className={`street-tag ${on ? 'on' : ''} ${isTheo && on ? 'later' : ''}`}
+              style={{ color: col, opacity: 0 }}
+            >
+              {isTheo && on ? (
+                <>{settings.adult ? 'Theo' : "Theo's shop"} · opens later</>
+              ) : (
+                <>
+                  {name}
+                  {on && (
+                    <>
+                      {' · '}
+                      <span lang="th">คุย</span> Talk
+                    </>
+                  )}
+                </>
               )}
             </div>
           );
         })}
-        <div className="street-you" style={{ left: px.current, top: 574 }}>YOU</div>
+        <div className="street-tag you" ref={youTag}>You</div>
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
-      <span className="sr-only" aria-live="polite">{nearPlace ? `You are at the ${nearPlace.name}.` : ''}</span>
+      <span className="sr-only" aria-live="polite">{nearPlace ? `You are at the ${nearPlace.name}.` : atTheo ? THEO_LINE : ''}</span>
     </div>
   );
 
@@ -343,13 +577,16 @@ export default function Street() {
           <KeyHints hints={[['A D', 'walk'], ['E', 'talk'], ['R', 'read sign'], ['Esc', 'leave']]} />
         ) : (
           // a fixed box: walking past a place changes the words, never the controls' height
+          // on a phone the column between the stick and the buttons is narrow: the buttons already say what to do
           <FitText lines={0} min={10} valign="center">
-            {nearPlace ? `At the ${nearPlace.name.toLowerCase()}. Talk, or read the sign.` : 'Walk the street. Talk to people, read the signs, finish tasks you would really face.'}
+            {device === 'phone'
+              ? nearPlace ? `At the ${nearPlace.name.toLowerCase()}.` : atTheo ? "Theo's shop. Opens later in the course." : 'Walk the street.'
+              : nearPlace ? `At the ${nearPlace.name.toLowerCase()}. Talk, or read the sign.` : atTheo ? THEO_LINE : 'Walk the street. Talk to people, read the signs, finish tasks you would really face.'}
           </FitText>
         )}
       </div>
       <div className="btns">
-        <button type="button" className="pill solid" onClick={talk} disabled={!near}>Talk</button>
+        <button type="button" className="pill solid" onClick={talk} disabled={!near && !atTheo}>Talk</button>
         <button type="button" className="pill" onClick={read} disabled={!near}>Read sign</button>
       </div>
     </div>
@@ -389,7 +626,7 @@ function StreetPanel({ open, done, reps, onWalk }: { open: StreetTaskBuilt[]; do
       <Row to="/street/meters-running" right="Taxi">Meter's Running</Row>
       <Row to="/street/after-hours" right={settings.adult ? '18+' : '18+ off'}>After Hours</Row>
       <Row to="/street/door-to-door" right="The trip">Door to Door</Row>
-      <Row to="/cast" right="8 people">Cast</Row>
+      <Row to="/cast" right="9 people">Cast</Row>
     </aside>
   );
 }
@@ -412,6 +649,18 @@ function Stick({ onMove }: { onMove: (dx: number) => void }) {
     setK(0);
     onMove(0);
   };
+  // let go however the touch ends: a lost capture, the app losing focus or going to the background
+  // (a notification, switching apps) must never leave you walking with nobody holding the stick
+  useEffect(() => {
+    const off = () => id.current != null && end();
+    const hide = () => document.hidden && off();
+    window.addEventListener('blur', off);
+    document.addEventListener('visibilitychange', hide);
+    return () => {
+      window.removeEventListener('blur', off);
+      document.removeEventListener('visibilitychange', hide);
+    };
+  });
   return (
     <div
       ref={base}
@@ -430,6 +679,7 @@ function Stick({ onMove }: { onMove: (dx: number) => void }) {
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
+      onLostPointerCapture={end}
     >
       <i style={{ transform: `translateX(${k * 30}px)` }} />
     </div>

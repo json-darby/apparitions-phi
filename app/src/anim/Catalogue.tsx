@@ -26,7 +26,7 @@ const COLOURS: { v: string; label: string }[] = [
 ];
 const WHO = [...CAST.map((c) => ({ v: c.id, label: c.name })), { v: 'you', label: 'You' }];
 const TONES: Tone[] = ['mid', 'low', 'falling', 'high', 'rising'];
-const OBJECT_LABEL: Record<string, string> = { dish: 'A plate of fried rice', tuktuk: 'A tuk-tuk', temple: 'A temple roof', banknote: 'A 100 baht note', bottle: 'A bottle of water', ice: 'A glass of tube ice', stall: 'A market stall' };
+const OBJECT_LABEL: Record<string, string> = { dish: 'A plate of fried rice', tuktuk: 'A tuk-tuk', temple: 'A temple roof', banknote: 'Coins (invented, no real currency)', bottle: 'A bottle of water', ice: 'A glass of tube ice', stall: 'A market stall' };
 
 const noStats: EngineStats = { fps: 0, dots: 0, live: 0, drawn: 0, quality: 2, contexts: 1, webgl: 0, ms: 0 };
 
@@ -254,7 +254,7 @@ export default function Catalogue() {
             <Sequence name={s} colour={col === 'auto' ? undefined : col} cue={cues[`seq-${s}`]} loop={loop} style={fill} />
           </Card>
         ))}
-        <Card n={++k} title="Street in depth" see="Each place on the street as a dot scene you move through with parallax." source="Scene image + depth" where="The Street street" controls={<><Pills value={place} options={PLACES.map((p) => ({ v: p.id, label: p.name }))} onChange={setPlace} label="Place" />{rangeRow('Camera', camera, setCamera)}</>}>
+        <Card n={++k} title="Street in depth" see="Each place on the street as a dot scene you move through with parallax." source="Scene image + depth" where="The Street street" controls={<><Pills value={place} options={[...PLACES.map((p) => ({ v: p.id as string, label: p.name })), { v: 'shop', label: "Theo's shop" }]} onChange={setPlace} label="Place" />{rangeRow('Camera', camera, setCamera)}</>}>
           <StreetScene place={place} camera={camera} colour={col === 'auto' ? undefined : col} style={fill} />
         </Card>
         <Card n={++k} title="Object turn" see="A dish, a tuk-tuk, a temple roof or a banknote turning slowly." source="Object image + depth" where="Thai fact screens" controls={<Pills value={object} options={OBJECTS.map((o) => ({ v: o, label: o }))} onChange={setObject} label="Object" />}>

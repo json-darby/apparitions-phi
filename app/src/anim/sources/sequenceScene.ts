@@ -99,7 +99,9 @@ export class SequenceScene implements DotScene {
       const ra: Rect = seqFrameRect(sp, f);
       const rp: Rect = seqFrameRect(sp, Math.max(0, f - 1));
       const dis = packEndFade(t, duration, sp.end_fade);
-      const base = { nx: n, ny: n, fit, pt, colour, t: ts, depth: [sp.depth_map.offset, sp.depth_map.scale] as [number, number], dis, keep: sp.linger === 'near' ? 1 : 0, tear: 0.15 + 0.4 * dis, lo: 0.25 };
+      // drawn as finely as a portrait: twice the dots along each row, smaller dots, so a clip of a
+      // person sits beside their face without looking coarser
+      const base = { nx: n * 2, ny: n, aspect: 1, fit, pt: pt * 0.62, colour, t: ts, depth: [sp.depth_map.offset, sp.depth_map.scale] as [number, number], dis, keep: sp.linger === 'near' ? 1 : 0, tear: 0.15 + 0.4 * dis, lo: 0.25, slope: [0.06, 0.12] as [number, number] };
       if (f > 0 && !c.still) drawCloud(c, { ...base, a: pack.tex, ra: rp, ghost: 1, alpha: 0.45, xf: [0.012, 0, 0, 1] });
       drawCloud(c, { ...base, a: pack.tex, ra: ra ?? PLAIN });
     } else {

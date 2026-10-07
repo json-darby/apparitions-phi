@@ -10,7 +10,7 @@ const TABS = [
   { to: '/', label: 'Today', icon: 'M4 11.5 12 5l8 6.5V20h-5v-5H9v5H4z' },
   { to: '/library', label: 'Library', icon: 'M5 4h4v16H5zM10 4h4v16h-4zM15.5 5.2l3.7-1 3.6 15.4-3.7 1z' },
   { to: '/progress', label: 'Progress', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
-  { to: '/settings', label: 'Settings', icon: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4z' },
+  { to: '/settings', label: 'Settings', icon: 'M15.2 12a3.2 3.2 0 1 1-6.4 0 3.2 3.2 0 0 1 6.4 0zM12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1' },
 ] as const;
 
 /** The screens that show the tab bar on phone and tablet. */

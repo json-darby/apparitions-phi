@@ -1,0 +1,207 @@
+{
+ "version": 2,
+ "credit": "AI-generated (Gemini 3 Pro Image), fictional people; in-betweens by RIFE (MIT); matte by BiRefNet (MIT)",
+ "people": {
+  "nok": {
+   "image": "bodies/nok.webp",
+   "tile": [
+    154,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0231,
+   "feet": 0.9778,
+   "centre": 0.4924,
+   "looks": "right"
+  },
+  "ton": {
+   "image": "bodies/ton.webp",
+   "tile": [
+    206,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0215,
+   "feet": 0.9785,
+   "centre": 0.4695,
+   "looks": "right"
+  },
+  "ploy": {
+   "image": "bodies/ploy.webp",
+   "tile": [
+    134,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0216,
+   "feet": 0.9775,
+   "centre": 0.445,
+   "looks": "right"
+  },
+  "lek": {
+   "image": "bodies/lek.webp",
+   "tile": [
+    146,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0226,
+   "feet": 0.9774,
+   "centre": 0.4806,
+   "looks": "right"
+  },
+  "mai": {
+   "image": "bodies/mai.webp",
+   "tile": [
+    190,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0227,
+   "feet": 0.9773,
+   "centre": 0.34,
+   "looks": "right"
+  },
+  "bank": {
+   "image": "bodies/bank.webp",
+   "tile": [
+    170,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0228,
+   "feet": 0.978,
+   "centre": 0.4668,
+   "looks": "right"
+  },
+  "theo": {
+   "image": "bodies/theo.webp",
+   "tile": [
+    180,
+    420
+   ],
+   "cols": 5,
+   "frames": 10,
+   "keys": {
+    "idle": 0,
+    "notice": 8,
+    "greet": 9
+   },
+   "reform": [
+    [
+     8,
+     9
+    ]
+   ],
+   "head": 0.0226,
+   "feet": 0.9774,
+   "centre": 0.6548,
+   "looks": "right"
+  },
+  "fah": {
+   "image": "bodies/fah.webp",
+   "tile": [
+    150,
+    420
+   ],
+   "cols": 5,
+   "frames": 3,
+   "keys": {
+    "idle": 0,
+    "notice": 1,
+    "greet": 2
+   },
+   "reform": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     2
+    ]
+   ],
+   "head": 0.0271,
+   "feet": 0.9783,
+   "centre": 0.6416,
+   "looks": "right",
+   "alt": {
+    "jacket": {
+     "image": "bodies/fah-jacket.webp"
+    }
+   }
+  }
+ }
+}

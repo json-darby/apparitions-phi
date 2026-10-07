@@ -182,7 +182,8 @@ export class Engine {
   }
 
   introducedRefs(): Set<string> {
-    return new Set(this.store.allCards().map((c) => c.ref));
+    // School of the Night's line cards (school:<line>) are not course content
+    return new Set(this.store.allCards().map((c) => c.ref).filter((r) => !r.startsWith('school:')));
   }
 
   /**

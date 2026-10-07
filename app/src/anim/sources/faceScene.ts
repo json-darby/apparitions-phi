@@ -249,8 +249,10 @@ export class FaceScene implements DotScene {
         }
       }
       // a portrait: twice the dots along each row (smooth scan lines, as in the reference), smaller dots,
-      // and the bust fading out below the chin
-      drawCloud(c, { ...common, nx: n * 2, aspect: 1, pt: pt * 0.62, foot: 1, a: aTex.tex, ra: PLAIN, b: b.tex, rb: PLAIN, mix, depth: pk.depth });
+      // and the bust fading out below the chin. The slope thinning starts a little later than for
+      // code-drawn heads, so the cheeks and jaw hold their dots longer before fading; the fade at the
+      // bottom starts lower, so the chin and neck stay solid
+      drawCloud(c, { ...common, nx: n * 2, aspect: 1, pt: pt * 0.62, foot: 1, a: aTex.tex, ra: PLAIN, b: b.tex, rb: PLAIN, mix, depth: pk.depth, slope: [0.06, 0.12], footRange: [0.84, 1] });
     } else {
       const tgt = this.face.render(eng, faceRes(n), this.look, e, this.gaze);
       drawCloud(c, { ...common, a: tgt.tex, depth: BUST_DEPTH, lo: 0.5 });

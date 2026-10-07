@@ -18,14 +18,42 @@ import { promptInstall, useInstall } from '../app/install';
 
 function Line({ title, note, children }: { title: string; note?: string; children: ReactNode }) {
   return (
-    <div className="row" style={{ cursor: 'default', alignItems: 'center', flexWrap: 'wrap', rowGap: 10 }}>
+    <div className="row line" style={{ cursor: 'default' }}>
       {/* on a phone a wide control drops below its words instead of squeezing them */}
-      <span className="stack gap-1" style={{ minWidth: 0, flex: '1 1 190px' }}>
+      <span className="line-text">
         <span>{title}</span>
         {note && <span className="small">{note}</span>}
       </span>
-      <span style={{ flex: 'none' }}>{children}</span>
+      <span className="line-control">{children}</span>
     </div>
+  );
+}
+
+function fmtDate(date: string) {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '');
+}
+
+/** A date as plain words and a chevron, over the browser's own date picker. */
+function DateValue({ value, onChange, label, empty = 'Not set' }: { value: string | null; onChange: (v: string) => void; label: string; empty?: string }) {
+  return (
+    <span className="date-value">
+      <span>{value ? fmtDate(value) : empty}</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+      <input
+        type="date"
+        value={value ?? ''}
+        aria-label={label}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => {
+          try {
+            e.currentTarget.showPicker?.();
+          } catch {
+            // a browser without showPicker opens its own picker
+          }
+        }}
+      />
+    </span>
   );
 }
 
@@ -39,7 +67,7 @@ interface Credit {
   changes?: string;
 }
 
-/** Image credits for the filler packs, read from packs/credits.json at runtime. */
+/** Image credits for the packs, read from packs/credits.json at runtime. */
 function ImageCredits() {
   const [list, setList] = useState<Credit[] | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
@@ -62,7 +90,7 @@ function ImageCredits() {
     <details>
       <summary style={{ cursor: 'pointer' }}>Image credits ({list.length})</summary>
       <div className="stack gap-2" style={{ marginTop: 8 }}>
-        {(notes.length ? notes : ['Filler images for private testing, sourced online, to be replaced.']).map((n) => (
+        {(notes.length ? notes : ['All images are AI-generated for this app.']).map((n) => (
           <p key={n} style={{ margin: 0 }}>{n}</p>
         ))}
         {list.map((c, i) => (
@@ -113,37 +141,39 @@ export default function Settings() {
   };
 
   return (
-    <Screen top={<TopBar mid="Settings" parent="/" />} narrow>
-      <h1 className="h-l" style={{ margin: '0 0 8px' }}>Settings</h1>
+    <Screen top={<TopBar mid="Settings" parent="/" />} narrow className="settings">
+      <div className="page-head" style={{ marginBottom: 20 }}>
+        <h1 className="h-page">Settings</h1>
+      </div>
 
       <SectionHead title="You" />
-      <Line title="Speaking identity" note="The forms you say. Listening always includes both.">
+      <Line title="Speaking" note="You hear both">
         <Seg label="Speaking identity" value={s.identity} onChange={(v) => set({ identity: v })} options={[{ v: 'm', label: 'Male' }, { v: 'f', label: 'Female' }]} />
       </Line>
       <Line title="Daily minutes">
-        <Seg label="Daily minutes" value={s.minutes} onChange={(v) => set({ minutes: v })} options={[{ v: 30, label: '30' }, { v: 60, label: '60' }]} />
+        <Seg label="Daily minutes" value={s.minutes} onChange={(v) => set({ minutes: v })} options={[{ v: 60, label: '60' }, { v: 30, label: '30' }]} />
       </Line>
-      <Line title="Course length" note="Sixty days goes further: about 620 words, every vowel and tone mark written, running text. Switch any time; your progress stays.">
-        <Seg label="Course length" value={s.courseDays} onChange={(v) => set({ courseDays: v })} options={[{ v: 30, label: '30 days' }, { v: 60, label: '60 days' }]} />
+      <Line title="Course length" note="Sixty goes further: about 620 words and reading. Progress stays if you switch.">
+        <Seg label="Course length" value={s.courseDays} onChange={(v) => set({ courseDays: v })} options={[{ v: 30, label: '30 d' }, { v: 60, label: '60 d' }]} />
       </Line>
-      <Line title="Trip date" note="Nothing is scheduled past it.">
-        <input type="date" value={s.tripDate ?? ''} onChange={(e) => set({ tripDate: e.target.value || null })} style={{ width: 170 }} aria-label="Trip date" />
+      <Line title="Trip date" note="Nothing is scheduled past it">
+        <DateValue label="Trip date" value={s.tripDate} onChange={(v) => set({ tripDate: v || null })} />
       </Line>
-      <Line title="Day 1 was" note="Moves you along the course.">
-        <input type="date" value={s.startDate} onChange={(e) => e.target.value && set({ startDate: e.target.value })} style={{ width: 170 }} aria-label="Start date" />
+      <Line title="Day 1 was" note="Moves you along the course">
+        <DateValue label="Start date" value={s.startDate} onChange={(v) => v && set({ startDate: v })} />
       </Line>
       <Line title="Name in The Street">
-        <input type="text" value={s.name} placeholder="You" onChange={(e) => set({ name: e.target.value })} style={{ width: 170 }} aria-label="Name" />
+        <input type="text" className="line-input" value={s.name} placeholder="You" onChange={(e) => set({ name: e.target.value })} aria-label="Name" />
       </Line>
 
       <SoundSettings />
       <LiveSettings />
 
       <SectionHead title="Content" />
-      <Line title="18+ content" note="After Hours, nightlife and cannabis-shop language. Non-explicit.">
+      <Line title="18+ content" note="After Hours and nightlife words, non-explicit">
         <Toggle label="18+ content" on={s.adult} onChange={(v) => set({ adult: v })} />
       </Line>
-      <Line title="Fading romanisation" note="Romanisation fades as each item gets stronger. Tap to see it.">
+      <Line title="Fading romanisation" note="Fades as each word gets stronger. Tap to see it">
         <Toggle label="Fading romanisation" on={s.romanFade} onChange={(v) => set({ romanFade: v })} />
       </Line>
       <Line title="Review ratings" note="Simple is three buttons: didn’t know, hard, knew it. Auto keeps it simple for your first 14 days, then shows all six.">
@@ -165,18 +195,17 @@ export default function Settings() {
       >
         {fullscreenSupported() && !isStandalone() && <Toggle label="Open full screen" on={s.fullscreen} onChange={(v) => set({ fullscreen: v })} />}
       </Line>
-      <div className="row" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-        <span className="stack gap-1">
+      <div className="row line" style={{ cursor: 'default' }}>
+        <span className="line-text">
           <span>Face colour</span>
-          <span className="small">Everyone in their own colour, or all in one. You can also double-tap any face to change it.</span>
+          <span className="small">{faceColourLabel(s.faceColour ?? 'own')} · or double-tap any face</span>
         </span>
-        <div className="swatches" role="group" aria-label="Face colour">
+        <div className="swatches line-control" role="group" aria-label="Face colour">
           {FACE_COLOURS.map((c) => (
             <button key={c.id} type="button" className="swatch" aria-pressed={(s.faceColour ?? 'own') === c.id} aria-label={c.label} title={c.label} onClick={() => set({ faceColour: c.id })}>
               <i className={c.hex ? undefined : 'own'} style={c.hex ? { background: c.hex } : undefined} />
             </button>
           ))}
-          <span className="small" style={{ alignSelf: 'center', marginLeft: 4 }}>{faceColourLabel(s.faceColour ?? 'own')}</span>
         </div>
       </div>
       <Line title="Reduced motion" note="Shows still dotted images instead of animation.">

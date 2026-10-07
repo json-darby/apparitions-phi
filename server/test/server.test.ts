@@ -16,11 +16,14 @@ import { accessMode, DEFAULT_ORIGINS, describeConfig, loadConfig, type Config } 
 import { BudgetExceeded, Ledger } from '../src/ledger.ts';
 import { RateLimiter } from '../src/limits.ts';
 import { composeInstruction } from '../src/live/guard.ts';
-import type { ServerMsg, TaskScript } from '../src/live/protocol.ts';
+import { MOCK_MUMBLE } from '../src/live/mock.ts';
+import { cleanDirective, type ServerMsg, type TaskScript } from '../src/live/protocol.ts';
 import { GEMINI_LIVE_URL, liveConnection, liveModelPath, liveUrl, setupMessage, VertexUpstream, type UpstreamEvents } from '../src/live/upstream.ts';
 import { scrub } from '../src/log.ts';
 import { sttMock } from '../src/stt.ts';
 import { similarity } from '../src/thai.ts';
+import { applyVerdicts, buildCustom, mockModels, mockSectionAnswer, readBody as readCustomBody, readDraft, romanOk, ruleCheck, screenScenario, type CustomBody, type Draft, type Models } from '../src/custom.ts';
+import { parseJsonAnswer, textUrl, type TextModel } from '../src/text.ts';
 
 const ORIGIN = 'http://localhost:5173';
 
@@ -174,7 +177,7 @@ test('vertex setup message: model path, manual activity, transcription, resumpti
   assert.deepEqual(m.sessionResumption, { handle: 'h1' });
   assert.ok(m.inputAudioTranscription && m.outputAudioTranscription);
   assert.equal(m.tools[0].functionDeclarations[0].name, 'slotFilled');
-  assert.equal(m.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, 'Kore');
+  assert.equal(m.generationConfig.speechConfig.voiceConfig?.prebuiltVoiceConfig.voiceName, 'Kore');
 });
 
 test('server rules come first and cannot be dropped; flirting only in an 18+ scene', () => {
@@ -659,5 +662,260 @@ test('live mock: an app direction to try a step again repeats that step\'s line'
     assert.equal(t2.args.slot, 'Greet');
   } finally {
     await s.close();
+  }
+});
+
+// ---------- School of the Night: directives and the mock tutor ----------
+
+const tutorStart = (over: Record<string, unknown> = {}) => ({
+  type: 'start', taskId: 'school', tutor: true, systemInstruction: 'You are Khru Dao.',
+  tools: [{ name: 'lineHeard', description: 'x' }, { name: 'repeatAsked', description: 'x' }, { name: 'flagUnsafe', description: 'x' }],
+  voice: 'f', adult: false, adultTask: false, ...over,
+});
+
+const directive = (step: string, say: string | undefined, expect: { lineId: string; thai: string }[]) => ({
+  type: 'directive',
+  directive: { step, text: `[App: ${say ? `Say exactly: "${say}". ` : 'Say nothing. '}Then wait.]`, say, expect },
+});
+
+test('live mock tutor: a scripted lesson steps through teach and branch, at no cost', async () => {
+  const { s, ws } = await start();
+  try {
+    const c = new Client(ws);
+    await c.open();
+    c.send(tutorStart());
+    assert.equal((await c.wait('ready')).mock, true);
+    // the tutor waits for the app: nothing is said before the first directive
+    await new Promise((r) => setTimeout(r, 40));
+    assert.ok(!c.msgs.some((m) => m.type === 'transcript'));
+
+    // teach: the tutor says the line, the learner repeats it (held long enough to be heard)
+    c.send(directive('t1', 'ไม่เผ็ดครับ', [{ lineId: 'food.not-spicy', thai: 'ไม่เผ็ดครับ' }]));
+    assert.equal((await c.wait('transcript', (m) => m.who === 'npc')).text, 'ไม่เผ็ดครับ');
+    await c.wait('turnComplete');
+    assert.ok(c.audioBytes > 1000);
+    c.send({ type: 'talk', on: true });
+    c.ws.send(Buffer.alloc(32000), { binary: true });
+    c.send({ type: 'talk', on: false });
+    assert.equal((await c.wait('transcript', (m) => m.who === 'learner')).text, 'ไม่เผ็ดครับ');
+    const heard = await c.wait('tool');
+    assert.equal(heard.name, 'lineHeard');
+    assert.deepEqual(heard.args, { lineId: 'food.not-spicy', verdict: 'right', heardThai: 'ไม่เผ็ดครับ' });
+    c.send({ type: 'toolResult', id: heard.id, name: heard.name, response: { ok: true } });
+    await c.wait('turnComplete');
+
+    // branch: the other person's line; a short press is a miss
+    c.send(directive('b1', 'เผ็ดไหมคะ', [{ lineId: 'food.not-spicy', thai: 'ไม่เผ็ดครับ' }]));
+    await c.wait('transcript', (m) => m.who === 'npc' && m.text === 'เผ็ดไหมคะ');
+    c.send({ type: 'talk', on: true });
+    c.ws.send(Buffer.alloc(16000), { binary: true });
+    c.send({ type: 'talk', on: false });
+    assert.equal((await c.wait('transcript', (m) => m.who === 'learner')).text, MOCK_MUMBLE);
+    const miss = await c.wait('tool');
+    assert.equal(miss.args.verdict, 'wrong');
+    c.send({ type: 'toolResult', id: miss.id, name: miss.name, response: { ok: true } });
+
+    // the escape line: the tutor says its line again
+    c.send({ type: 'text', text: 'พูดอีกทีได้ไหมครับ' });
+    const again = await c.wait('tool');
+    assert.equal(again.name, 'repeatAsked');
+    c.send({ type: 'toolResult', id: again.id, name: again.name, response: { ok: true } });
+    await c.wait('transcript', (m) => m.who === 'npc' && m.text === 'เผ็ดไหมคะ');
+
+    // typed answers are matched for real; silence is heard as nothing
+    c.send({ type: 'text', text: 'ไม่เผ็ดครับ' });
+    const right = await c.wait('tool');
+    assert.equal(right.args.verdict, 'right');
+    c.send({ type: 'toolResult', id: right.id, name: right.name, response: { ok: true } });
+    c.send(directive('r1', undefined, [{ lineId: 'food.not-spicy', thai: 'ไม่เผ็ดครับ' }]));
+    await c.wait('turnComplete');
+    c.send({ type: 'talk', on: true });
+    c.send({ type: 'talk', on: false });
+    assert.equal((await c.wait('transcript', (m) => m.who === 'learner')).text, '');
+    c.send({ type: 'stop' });
+    await c.wait('ended');
+    assert.doesNotMatch(readFileSync(s.config.ledgerFile, 'utf8'), /"usd":[1-9]/, 'mock costs nothing');
+  } finally {
+    await s.close();
+  }
+});
+
+test('directives are checked and trimmed; a malformed one is ignored', async () => {
+  assert.equal(cleanDirective({ step: 'x', text: '   ' }), null);
+  assert.equal(cleanDirective({ text: 'x' }), null);
+  const d = cleanDirective({ step: 's', text: 'y'.repeat(5000), say: 'ก', expect: [...Array(10)].map((_, i) => ({ lineId: `l${i}`, thai: 'ก' })), slower: 'yes' })!;
+  assert.equal(d.text.length, 1200);
+  assert.equal(d.expect!.length, 6);
+  assert.equal(d.slower, undefined);
+  const { s, ws } = await start();
+  try {
+    const c = new Client(ws);
+    await c.open();
+    c.send(tutorStart());
+    await c.wait('ready');
+    c.send({ type: 'directive', directive: { text: 'no step' } });
+    c.send(directive('t', 'สวัสดีครับ', [{ lineId: 'mk.hello', thai: 'สวัสดีครับ' }]));
+    assert.equal((await c.wait('transcript', (m) => m.who === 'npc')).text, 'สวัสดีครับ');
+    c.send({ type: 'stop' });
+    await c.wait('ended');
+  } finally {
+    await s.close();
+  }
+});
+
+test('tutor voice: unset is the model default voice, by-sex follows the app, or a named voice', () => {
+  const base = { systemInstruction: 'x', tools: [], voice: 'm' as const };
+  const unset = loadConfig({ project: 'p', mock: false, liveApi: 'vertex', liveTutorVoice: null });
+  assert.equal(setupMessage(unset, { ...base, tutor: true }, null).setup.generationConfig.speechConfig.voiceConfig, undefined);
+  assert.equal(setupMessage(unset, base, null).setup.generationConfig.speechConfig.voiceConfig?.prebuiltVoiceConfig.voiceName, 'Charon', 'the street cast keeps its voices');
+  const bySex = loadConfig({ project: 'p', mock: false, liveApi: 'vertex', liveTutorVoice: 'by-sex' });
+  assert.equal(setupMessage(bySex, { ...base, tutor: true }, null).setup.generationConfig.speechConfig.voiceConfig?.prebuiltVoiceConfig.voiceName, 'Charon');
+  const named = loadConfig({ project: 'p', mock: false, liveApi: 'vertex', liveTutorVoice: 'Aoede' });
+  assert.equal(setupMessage(named, { ...base, tutor: true }, null).setup.generationConfig.speechConfig.voiceConfig?.prebuiltVoiceConfig.voiceName, 'Aoede');
+});
+
+test('real mode (Google stood in for): a directive reaches the model as one text turn', async () => {
+  const got: unknown[] = [];
+  const { fake, endpoint } = await fakeGoogle((sock) => {
+    sock.send(JSON.stringify({ setupComplete: {} }));
+    sock.on('message', (d) => got.push(JSON.parse(d.toString())));
+  });
+  const { s, ws } = await start({ mock: false, liveApi: 'gemini', apiKey: 'TESTKEY', project: null, liveEndpoint: endpoint });
+  try {
+    const c = new Client(ws);
+    await c.open();
+    c.send(tutorStart());
+    await c.wait('ready');
+    c.send(directive('t1', 'สวัสดีครับ', [{ lineId: 'mk.hello', thai: 'สวัสดีครับ' }]));
+    await new Promise((r) => setTimeout(r, 120));
+    assert.deepEqual(got, [{ clientContent: { turns: [{ role: 'user', parts: [{ text: '[App: Say exactly: "สวัสดีครับ". Then wait.]' }] }], turnComplete: true } }]);
+    c.send({ type: 'stop' });
+    await c.wait('ended');
+  } finally {
+    await s.close();
+    fake.close();
+  }
+});
+
+
+// ---------- School of the Night: custom lessons ----------
+
+const BODY: CustomBody = { scenario: 'renting a scooter for three days', identity: 'm', adult: false, known: [['มี', 'mii', 'have'], ['ไหม', 'mǎi', 'question'], ['ได้', 'dâai', 'can'], ['สาม', 'sǎam', '3'], ['วัน', 'wan', 'day']] };
+
+test('custom: the scenario is screened before any model sees it', () => {
+  assert.equal(screenScenario('renting a scooter', false).ok, true);
+  assert.equal((screenScenario('buying weed at a cannabis shop', false) as { code: string }).code, 'adult-off');
+  assert.equal(screenScenario('buying weed at a cannabis shop', true).ok, true);
+  assert.equal((screenScenario('porn', true) as { code: string }).code, 'unsafe');
+  assert.equal((screenScenario('where to buy cocaine', true) as { code: string }).code, 'unsafe');
+  assert.equal((screenScenario('flirting with a 16 years old', true) as { code: string }).code, 'unsafe');
+  // an innocent mention of children outside the Night side is fine
+  assert.equal(screenScenario('buying ice cream for my kids', false).ok, true);
+  assert.equal(typeof readCustomBody({ scenario: 'x' }), 'string');
+  assert.equal((readCustomBody({ scenario: 'at the pharmacy', adult: true, identity: 'f', known: [['ยา', 'yaa', 'medicine'], ['bad']] }) as CustomBody).known.length, 1);
+});
+
+test('custom: the rule checks fix what is certain and drop what fails', () => {
+  assert.equal(romanOk('sà-wàt-dii'), true);
+  assert.equal(romanOk('mǎi'), true);
+  assert.equal(romanOk('khráp!'), false);
+  assert.equal(romanOk('sàwát'), false, 'two tone marks in one syllable');
+  const w = (s: string) => s.split(' ').map((p) => ({ thai: p.split('|')[0], roman: p.split('|')[1] }));
+  const d: Draft = {
+    title: 't', scenario: 's', adult: false, door: 'l9', dropped: 0, mock: false,
+    lines: [
+      // a course word romanised differently: fixed to the course's; the ending's romanisation too
+      { id: 'l1', en: 'Do you have it?', m: w('มี|mee ไหม|mǎi ครับ|krap'), f: w('มี|mii ไหม|mǎi ค่ะ|khâ'), replies: [
+        { id: 'l1.r1', en: 'Yes.', m: w('มี|mii ครับ|khráp'), f: w('มี|mii ค่ะ|khâ'), answer: 'l3' },
+        { id: 'l1.r2', en: 'No.', m: w('ไม่|mâi มี|mii'), f: w('ไม่|mâi มี|mii'), answer: 'gone' },
+      ] },
+      // a male ending in the female form: dropped
+      { id: 'l2', en: 'Three days.', m: w('สาม|sǎam วัน|wan ครับ|khráp'), f: w('สาม|sǎam วัน|wan ครับ|khráp'), replies: [] },
+      { id: 'l3', en: 'Okay.', m: w('โอเค|oo-khee ครับ|khráp'), f: w('โอเค|oo-khee ค่ะ|khâ'), replies: [] },
+      // the two forms say different things: dropped
+      { id: 'l4', en: 'Can I?', m: w('ได้|dâai ไหม|mǎi ครับ|khráp'), f: w('มี|mii ไหม|mǎi คะ|khá'), replies: [] },
+      // Latin letters in the Thai: dropped
+      { id: 'l5', en: 'OK', m: w('OK|oo-khee ครับ|khráp'), f: w('OK|oo-khee ค่ะ|khâ'), replies: [] },
+    ],
+    frames: [],
+  };
+  const { draft, problems } = ruleCheck(d, BODY.known);
+  assert.deepEqual(draft.lines.map((l) => l.id), ['l1', 'l3']);
+  assert.equal(draft.lines[0].m[0].roman, 'mii');
+  assert.equal(draft.lines[0].m[2].roman, 'khráp');
+  // a question: the female form takes คะ
+  assert.equal(draft.lines[0].f[2].thai, 'คะ');
+  assert.deepEqual(draft.lines[0].replies.map((r) => r.id), ['l1.r1'], 'a reply whose answer is not a line goes');
+  assert.ok(problems.l2 && problems.l4 && problems.l5);
+  assert.equal(draft.door, 'l1', 'a door that is not a line falls back to the first line');
+  assert.equal(draft.dropped, 3);
+});
+
+test('custom: the second model drops what a Thai speaker would not say and keeps its blind reading', () => {
+  const d = readDraft(mockSectionAnswer(), BODY) as Draft;
+  const ruled = ruleCheck(d, []).draft;
+  const out = applyVerdicts(ruled, { items: [{ id: 'l3', back: 'three days', natural: false }, { id: 'l1', back: 'I want to rent a motorbike', natural: true }, { id: 'l2.r1', natural: false }] });
+  assert.equal(out.lines.some((l) => l.id === 'l3'), false);
+  assert.equal(out.lines[0].back, 'I want to rent a motorbike');
+  assert.equal(out.lines.find((l) => l.id === 'l1')!.replies.some((r) => r.answer === 'l3'), false, 'replies answered by a dropped line go too');
+  assert.equal(out.lines.find((l) => l.id === 'l2')!.replies.some((r) => r.id === 'l2.r1'), false);
+  assert.deepEqual(parseJsonAnswer('```json\n{"a":1}\n```'), { a: 1 });
+});
+
+test('custom: too few lines pass, so it writes once more; a refusal is passed on', async () => {
+  let writes = 0;
+  const thin = { ...(mockSectionAnswer() as { lines: unknown[] }) };
+  thin.lines = thin.lines.slice(0, 4);
+  const write: TextModel = async () => ({ data: ++writes === 1 ? thin : mockSectionAnswer(), model: 'x', tokensIn: 1, tokensOut: 1, usd: 0 });
+  const check: TextModel = async () => ({ data: { items: [] }, model: 'y', tokensIn: 1, tokensOut: 1, usd: 0 });
+  const r = await buildCustom(BODY, { write, check, writeModel: 'x', checkModel: 'y' });
+  assert.equal(writes, 2);
+  assert.ok(r.ok && 'draft' in r && r.draft.lines.length >= 6);
+  const no: Models = { ...mockModels(), write: async () => ({ data: { refused: true, reason: 'no' }, model: 'x', tokensIn: 0, tokensOut: 0, usd: 0 }) };
+  const ref = await buildCustom(BODY, no);
+  assert.equal(ref.ok, false);
+  assert.equal(!ref.ok && ref.code, 'refused');
+});
+
+test('custom: text calls go to Vertex with a project, else the Gemini API', () => {
+  const base = loadConfig({}, {});
+  assert.match(textUrl({ ...base, project: 'p', textLocation: 'global' }, 'gemini-3.8-flash'), /^https:\/\/aiplatform\.googleapis\.com\/v1\/projects\/p\/locations\/global\/publishers\/google\/models\/gemini-3\.8-flash:generateContent$/);
+  assert.match(textUrl({ ...base, project: null, liveApi: 'gemini' }, 'm'), /generativelanguage\.googleapis\.com\/v1beta\/models\/m:generateContent$/);
+});
+
+test('POST /school/custom in mock mode: a checked section, the daily cap, the code, 18+', async () => {
+  const { s, url } = await start({ customPerDay: 3, customPerMinute: 50 });
+  const post = (body: unknown, headers: Record<string, string> = {}) =>
+    fetch(`${url}/school/custom`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: ORIGIN, ...headers }, body: JSON.stringify(body) });
+  try {
+    const r = await post(BODY);
+    assert.equal(r.status, 200);
+    const j = (await r.json()) as any;
+    assert.equal(j.draft.mock, true);
+    assert.ok(j.draft.lines.length >= 6);
+    assert.ok(j.draft.lines.every((l: any) => l.m.at(-1).thai === 'ครับ' && ['ค่ะ', 'คะ'].includes(l.f.at(-1).thai)));
+    assert.ok(j.draft.frames.length === 1 && j.draft.frames[0].words.length >= 2);
+    assert.ok(j.draft.lines.some((l: any) => l.back), 'the blind reading comes back');
+    const rw = await post({ ...BODY, reword: { en: 'Can I look first?', context: BODY.scenario } });
+    const rj = (await rw.json()) as any;
+    assert.equal(rj.line.en, 'Can I look first?');
+    const night = await post({ ...BODY, scenario: 'flirting at a beer bar' });
+    assert.equal(night.status, 422);
+    assert.equal(((await night.json()) as any).error, 'adult-off');
+    // a screened-out scenario costs nothing and does not count; three today, then no more
+    assert.equal((await post(BODY)).status, 200);
+    assert.equal((await post(BODY)).status, 429);
+    assert.equal(s.ledger.customRequestsOn(), 3);
+    const h = (await (await fetch(`${url}/health`)).json()) as any;
+    assert.deepEqual(h.custom, { available: true, requestsLeftToday: 0 });
+  } finally {
+    await s.close();
+  }
+  const coded = await start({ requireCode: true, accessCode: CODE });
+  try {
+    const no = await fetch(`${coded.url}/school/custom`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: ORIGIN }, body: JSON.stringify(BODY) });
+    assert.equal(no.status, 401);
+  } finally {
+    await coded.s.close();
   }
 });

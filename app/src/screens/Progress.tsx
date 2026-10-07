@@ -1,12 +1,13 @@
 // Progress: the day path, streak and minutes, items by strength, strengths by
 // skill, weekly checkpoints and the weakest words.
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useApp, useStoreVersion } from '../app/context';
 import { addDays, localDate } from '../core/dates';
 import { SKILLS, type Skill } from '../content/types';
 import { checkpointDays, spineFor } from '../path/pathway';
-import { Label, Meter, Screen, SectionHead, Stat, TopBar } from '../ui/kit';
+import { Label, ListHead, Meter, Screen, Stat, TopBar } from '../ui/kit';
+import { FitText } from '../ui/FitText';
 import { Link } from '../app/router';
 
 const SKILL_LABEL: Record<Skill, string> = { hear: 'Hear it', say: 'Say it', read: 'Read it', write: 'Write it', tone: 'Name its tone' };
@@ -45,7 +46,7 @@ export default function Progress() {
   const panel = (
     <div className="stack gap-6">
       <section>
-        <SectionHead title="Weakest" />
+        <ListHead title="Weakest" />
         {data.weak.length === 0 && <p className="small">Nothing met yet.</p>}
         {data.weak.map(({ r, s }) => {
           const it = content.item(r);
@@ -63,7 +64,7 @@ export default function Progress() {
         })}
       </section>
       <section>
-        <SectionHead title="Checkpoints" />
+        <ListHead title="Checkpoints" />
         {checkpointDays(settings.courseDays).map((d) => {
           const c = data.checkpoints[d];
           return (
@@ -77,67 +78,90 @@ export default function Progress() {
     </div>
   );
 
+  const cps = checkpointDays(settings.courseDays);
+  const daysDone = Array.from({ length: settings.courseDays }, (_, i) => addDays(settings.startDate, i)).filter((d) => data.activeDays.has(d)).length;
+  const hours = data.minsAll / 60;
+
   return (
-    <Screen top={<TopBar mid="Progress" parent="/" right={<Link to="/readiness" className="label" style={{ textDecoration: 'none' }}>Readiness</Link>} />} panel={panel}>
-      <Label>Day {Math.min(day, settings.courseDays)} of {settings.courseDays} · {settings.minutes}-minute track</Label>
-      <h1 className="h-l" style={{ margin: '10px 0 24px' }}>Progress</h1>
-      <div className="stats">
-        <Stat label="Day streak" value={engine.streak()} />
-        <Stat label="Today" value={`${Math.round(data.minsToday)} min`} />
-        <Stat label="This week" value={`${Math.round(data.minsWeek)} min`} />
+    <Screen top={<TopBar mid="Progress" parent="/" right={<Link to="/readiness" className="pill text small" style={{ textDecoration: 'none' }}>Readiness</Link>} />} panel={panel}>
+      <div className="page-head">
+        <Label>Day {Math.min(day, settings.courseDays)} of {settings.courseDays} · {settings.minutes}-minute track</Label>
+        <h1 className="h-page">Progress</h1>
       </div>
+      <div className="bigstats">
+        <BigStat value={data.met} label="items met" />
+        <BigStat value={data.bands.strong} label="known well" />
+        <BigStat value={<>{hours < 10 ? hours.toFixed(1) : Math.round(hours)}<small> h</small></>} label="practised" />
+      </div>
+      <p className="small" style={{ margin: '10px 0 0' }}>
+        {engine.streak()} day streak · {Math.round(data.minsToday)} min today · {Math.round(data.minsWeek)} min this week
+      </p>
 
-      <SectionHead title="The path" note={`${data.met} met`} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 4 }} role="list" aria-label="30-day path">
-        {Array.from({ length: settings.courseDays }, (_, i) => {
-          const d = i + 1;
-          const date = addDays(settings.startDate, i);
-          const did = data.activeDays.has(date);
-          const isToday = d === day;
-          const cp = checkpointDays(settings.courseDays).includes(d);
-          return (
-            <div
-              key={d}
-              role="listitem"
-              title={`Day ${d}: ${spineFor(d, settings.courseDays).focus}`}
-              style={{
-                aspectRatio: '1', borderRadius: cp ? '50%' : 3, display: 'grid', placeItems: 'center',
-                fontSize: 11, fontWeight: 600,
-                border: `1px solid ${isToday ? 'var(--fg)' : 'var(--rule)'}`,
-                background: did ? 'var(--fg)' : 'transparent', color: did ? '#050505' : d < day ? 'var(--mut-2)' : 'var(--mut)',
-              }}
-            >
-              {d}
+      <section className="page-section">
+        <ListHead title="The path" note={`${daysDone} of ${settings.courseDays} days`} />
+        <div className="path-dots" role="list" aria-label={`${settings.courseDays}-day path`}>
+          {Array.from({ length: settings.courseDays }, (_, i) => {
+            const d = i + 1;
+            const did = data.activeDays.has(addDays(settings.startDate, i));
+            const isToday = d === day;
+            const cp = cps.includes(d);
+            const state = did ? 'done' : isToday ? 'now' : d < day ? 'missed' : '';
+            return (
+              <span
+                key={d}
+                role="listitem"
+                className={`path-dot ${cp ? 'cp' : ''} ${state}`}
+                title={`Day ${d}: ${spineFor(d, settings.courseDays).focus}`}
+                aria-label={`Day ${d}${cp ? ', checkpoint' : ''}${did ? ', done' : isToday ? ', today' : ''}`}
+              />
+            );
+          })}
+        </div>
+        <div className="path-key small" aria-hidden>
+          <span><i className="path-dot done" />Done</span>
+          <span><i className="path-dot now" />Today</span>
+          <span><i className="path-dot cp" />Checkpoint</span>
+        </div>
+      </section>
+
+      <section className="page-section">
+        <ListHead title="By skill" note="Recall right now" />
+        <div className="stack gap-4">
+          {data.bySkill.map((s) => (
+            <div key={s.skill} className="skill-meter">
+              <div className="hrow between">
+                <span>{SKILL_LABEL[s.skill]}</span>
+                <span className="num fg2">{s.n ? `${Math.round(s.r * 100)}%` : '—'}</span>
+              </div>
+              <Meter value={s.r} />
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      </section>
 
-      <SectionHead title="Items by strength" />
-      <div style={{ display: 'flex', height: 10, gap: 2, marginBottom: 10 }} aria-hidden>
-        {(['new', 'weak', 'ok', 'strong'] as const).map((k, i) => (
-          <div key={k} style={{ flex: data.bands[k] / total, background: ['#3a3a3a', 'var(--bad)', 'var(--amber)', 'var(--good)'][i] }} />
-        ))}
-      </div>
-      <div className="stats" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <Stat label="Just met" value={data.bands.new} />
-        <Stat label="Weak" value={data.bands.weak} />
-        <Stat label="Holding" value={data.bands.ok} />
-        <Stat label="Strong" value={data.bands.strong} />
-      </div>
-
-      <SectionHead title="By skill" note="Average recall now" />
-      <div className="stack gap-4">
-        {data.bySkill.map((s) => (
-          <div key={s.skill} className="stack gap-2">
-            <div className="hrow between">
-              <span>{SKILL_LABEL[s.skill]}</span>
-              <span className="label num">{s.n ? `${Math.round(s.r * 100)}% · ${s.n}` : '—'}</span>
-            </div>
-            <Meter value={s.r} />
-          </div>
-        ))}
-      </div>
+      <section className="page-section">
+        <ListHead title="Items by strength" />
+        <div style={{ display: 'flex', height: 6, gap: 2, marginBottom: 12, borderRadius: 3, overflow: 'hidden' }} aria-hidden>
+          {(['new', 'weak', 'ok', 'strong'] as const).map((k, i) => (
+            <div key={k} style={{ flex: data.bands[k] / total, background: ['#3a3a3a', 'var(--bad)', 'var(--amber)', 'var(--good)'][i] }} />
+          ))}
+        </div>
+        <div className="stats" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <Stat label="Just met" value={data.bands.new} />
+          <Stat label="Weak" value={data.bands.weak} />
+          <Stat label="Holding" value={data.bands.ok} />
+          <Stat label="Strong" value={data.bands.strong} />
+        </div>
+      </section>
     </Screen>
+  );
+}
+
+function BigStat({ value, label }: { value: ReactNode; label: string }) {
+  return (
+    <div className="bigstat">
+      <FitText className="v num" min={16}>{value}</FitText>
+      <span className="small">{label}</span>
+    </div>
   );
 }

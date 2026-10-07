@@ -659,6 +659,10 @@ uniform float uGain;                  // brightness gain
 uniform vec2 uPar;                    // parallax x shift by depth, unused
 uniform float uGhost;                 // >0 when drawing the ghost (previous frame)
 uniform float uFoot;                  // 1: fade the bottom of a bust out softly (people)
+uniform float uFloor;                 // portraits: least share of dots kept in dark areas (hair, the shadow side)
+uniform vec2 uSlope;                  // depth slope where dots start and finish thinning out
+uniform vec2 uFootR;                  // where the bust starts and finishes fading out (rows, 0 top .. 1 bottom)
+uniform float uStable;                // 1: which dots show does not reshuffle over time (crisp portraits)
 varying float vL; varying float vLine; varying float vW;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(float x){float i=floor(x),f=fract(x);f=f*f*(3.-2.*f);return mix(hash(vec2(i,7.)),hash(vec2(i+1.,7.)),f);}
@@ -675,7 +679,7 @@ void main(){
   vec2 eu=vec2(1./256.,0.), ev=vec2(0.,1./256.);
   float gx=texture2D(uA,uRA.xy+(aG.xy+eu)*uRA.zw).g-texture2D(uA,uRA.xy+(aG.xy-eu)*uRA.zw).g;
   float gy=texture2D(uA,uRA.xy+(aG.xy+ev)*uRA.zw).g-texture2D(uA,uRA.xy+(aG.xy-ev)*uRA.zw).g;
-  float level=(1.-smoothstep(.045,.09,length(vec2(gx,gy))))*(1.-uFoot*smoothstep(.72,.95,aG.y));
+  float level=(1.-smoothstep(uSlope.x,uSlope.y,length(vec2(gx,gy))))*(1.-uFoot*smoothstep(uFootR.x,uFootR.y,aG.y));
   float row=floor(aG.y*uN);
   float burst=step(.8,noise(uT*1.6+row*.02))*noise(uT*9.+row*.31);
   float band=step(.84,noise(row*.09+floor(uT*5.)*3.1));
@@ -712,8 +716,8 @@ void main(){
   float mE=min(min(texture2D(uA,uRA.xy+(aG.xy+3.*eu)*uRA.zw).a,texture2D(uA,uRA.xy+(aG.xy-3.*eu)*uRA.zw).a),
               min(texture2D(uA,uRA.xy+(aG.xy+3.*ev)*uRA.zw).a,texture2D(uA,uRA.xy+(aG.xy-3.*ev)*uRA.zw).a));
   float keep=smoothstep(uLo,uLo+.3,mk)*mix(1.,smoothstep(uLo,uLo+.4,mE),uFoot)*level;
-  float th=hash(aG.xy*uN+floor(uT*4.)*.37)*.85+.05;
-  float on=step(th,pow(l,1.15)*1.15)*step(hash(aG.xy*23.+1.7)*.97,keep);
+  float th=hash(aG.xy*uN+floor(uT*4.)*.37*(1.-uStable))*.85+.05;
+  float on=step(th,max(pow(l,1.15)*1.15,uFloor))*step(hash(aG.xy*23.+1.7)*.97,keep);
   on*=step(h2,1.-dis*1.05);
   on*=step(seed,.25+.75*uClar);
   on*=step(.02,g);

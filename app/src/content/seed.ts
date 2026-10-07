@@ -249,14 +249,17 @@ export const CAST: CastMember[] = [
   { id: 'mai', name: 'Mai', role: 'Pharmacist', age: '30s', place: 'pharmacy', colour: '#2EE6E6', look: 'woman in her thirties, white coat, long dark hair, calm' },
   { id: 'bank', name: 'Bank', role: 'Bar regular', age: 'late 20s', place: 'bar', colour: '#FF3C96', look: 'man in his late twenties, open shirt, easy laugh' },
   { id: 'fah', name: 'Fah', role: 'Bar regular', age: 'late 20s', place: 'bar', colour: '#FF3C96', look: 'woman in her late twenties, short bob, direct gaze, dry humour' },
+  { id: 'theo', name: 'Theo', role: 'Shop assistant', age: 'late 20s', place: null, colour: '#9BE564', look: 'Londoner in his late twenties, locs tied back, short beard, green tee under a linen shirt, easy-going' },
   { id: 'pim', name: 'Pim', role: 'Guide and narrator', age: '30s', place: null, colour: '#E8E8E8', look: 'woman in her thirties, linen shirt, notebook, unhurried' },
 ];
 
+// x: the middle of each shopfront in the street photograph (measured in street/geometry.ts);
+// the taxi rank is the pavement just before the parked taxi.
 export const PLACES: Place[] = [
-  { id: 'hotel', name: 'Hotel desk', thaiSign: 'โรงแรม', signRoman: 'roong-raem', x: 0.06, person: 'ploy' },
-  { id: 'food', name: 'Food stall', thaiSign: 'ร้านอาหาร', signRoman: 'ráan aa-hǎan', x: 0.24, person: 'nok' },
-  { id: 'pharmacy', name: 'Pharmacy', thaiSign: 'ร้านขายยา', signRoman: 'ráan khǎai yaa', x: 0.42, person: 'mai' },
-  { id: 'bar', name: 'Bar', thaiSign: 'บาร์', signRoman: 'baa', x: 0.6, person: 'fah' },
-  { id: 'market', name: 'Market', thaiSign: 'ตลาด', signRoman: 'dtà-làat', x: 0.78, person: 'lek' },
-  { id: 'taxi', name: 'Taxi rank', thaiSign: 'แท็กซี่', signRoman: 'tháek-sîi', x: 0.94, person: 'ton' },
+  { id: 'hotel', name: 'Hotel desk', thaiSign: 'โรงแรม', signRoman: 'roong-raem', x: 0.15, person: 'ploy' },
+  { id: 'food', name: 'Food stall', thaiSign: 'ร้านอาหาร', signRoman: 'ráan aa-hǎan', x: 0.257, person: 'nok' },
+  { id: 'pharmacy', name: 'Pharmacy', thaiSign: 'ร้านขายยา', signRoman: 'ráan khǎai yaa', x: 0.386, person: 'mai' },
+  { id: 'bar', name: 'Bar', thaiSign: 'บาร์', signRoman: 'baa', x: 0.508, person: 'fah' },
+  { id: 'market', name: 'Market', thaiSign: 'ตลาด', signRoman: 'dtà-làat', x: 0.75, person: 'lek' },
+  { id: 'taxi', name: 'Taxi rank', thaiSign: 'แท็กซี่', signRoman: 'tháek-sîi', x: 0.83, person: 'ton' },
 ];

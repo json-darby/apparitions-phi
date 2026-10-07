@@ -1,4 +1,4 @@
-// Cast: the eight people of the street, each clearer as you know them. Today's
+// Cast: the nine people of the street, each clearer as you know them. Today's
 // constellation (everyone you spoke to today) sits on top when there is one.
 
 import { useMemo } from 'react';
@@ -35,7 +35,7 @@ export default function Cast() {
       <Label>The Street</Label>
       <h1 className="h-xl" style={{ margin: '10px 0 12px' }}>Cast</h1>
       <p className="body" style={{ marginTop: 0, maxWidth: '54ch' }}>
-        Eight people. They come into focus as you get to know them.
+        Nine people. They come into focus as you get to know them.
       </p>
       {today.length > 0 && (
         <section style={{ margin: '12px 0 28px' }}>

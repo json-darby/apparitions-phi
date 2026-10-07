@@ -10,6 +10,7 @@ three things:
 | `GET /health` | Is the server up, is it in mock mode, live minutes left today, spend against the cap. The app offers "Talk live" only when this answers. When an access code is set, without it this says only `{ ok, service, needsCode: true }`. |
 | `WS /live` | The live conversation with a street character. Relays the learner's voice (16 kHz PCM, only while the talk button is held) to Gemini Live (the Gemini API with a key, or Vertex AI) and the character's voice (24 kHz PCM) back. Holds the session and resumes it when Google's ~10-minute connection ends. |
 | `POST /stt` | The online consonant and vowel check. Speech-to-Text v2, `chirp_3`, falling back to `chirp_2`, Thai. Returns `{ transcript, confidence, similarity, model }`; similarity is 0..1 against the target Thai with tone marks removed. Tones are never judged here. |
+| `POST /school/custom` | School of the Night custom lessons. Writes a section for a described situation with `PHI_TEXT_MODEL` (default `gemini-3.8-flash`), runs rule checks, then a blind second pass with `PHI_TEXT_CHECK_MODEL` (default `gemini-2.5-pro`); failures are dropped, and the section is written once more if too few lines pass. `{ reword }` rewrites one line. Needs the access code; capped by `PHI_CUSTOM_PER_DAY` (default 12) and the shared spending cap. Mock mode returns a canned section (renting a scooter) at no cost. |
 
 On the PC it listens on `127.0.0.1:8787` only. On Cloud Run (`K_SERVICE` is
 set) it listens on `0.0.0.0:$PORT` and reads only environment variables; any

@@ -7,8 +7,9 @@ import { useApp } from '../app/context';
 import { personalRetention } from '../engine/calibrate';
 import type { Forecast, Status } from '../engine/forecast';
 import { READY } from '../engine/situations';
+import { PLACE_COLOURS } from '../content/types';
 import { useForecast } from '../engine/useForecast';
-import { Label, Note, Screen, SectionHead, TopBar } from '../ui/kit';
+import { Label, ListHead, Note, Screen, TopBar } from '../ui/kit';
 
 const STATUS: Record<Status, { title: string; tone: string }> = {
   ahead: { title: 'Ahead', tone: 'var(--good)' },
@@ -18,6 +19,9 @@ const STATUS: Record<Status, { title: string; tone: string }> = {
 };
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** A place's light: its street colour; signs and menus are white. */
+const placeColour = (id: string) => (PLACE_COLOURS as Record<string, string>)[id] ?? PLACE_COLOURS.you;
 
 function fmtDate(date: string) {
   const [y, m, d] = date.split('-').map(Number);
@@ -44,7 +48,7 @@ export default function Readiness() {
   if (!f)
     return (
       <Screen top={<TopBar mid="Readiness" parent="/" />} narrow>
-        <h1 className="h-l">Readiness</h1>
+        <div className="page-head"><h1 className="h-page">Readiness</h1></div>
         <p className="body">{busy ? 'Working out your forecast. It replays the days to your trip a few dozen times, so it takes a moment.' : 'No forecast yet.'}</p>
       </Screen>
     );
@@ -55,7 +59,11 @@ export default function Readiness() {
   const panel = (
     <div className="stack gap-6">
       <section>
-        <SectionHead title="How it is worked out" />
+        <ListHead title="The road to the trip" />
+        <ReadinessChart f={f} />
+      </section>
+      <section>
+        <ListHead title="How it is worked out" />
         <div className="stack gap-3 small" style={{ color: 'var(--fg-2)' }}>
           <p style={{ margin: 0 }}>
             The forecast replays the {f.daysLeft} days to {f.horizonKind === 'trip' ? 'your trip' : 'the end of the course'} {f.runs} times, using
@@ -95,54 +103,58 @@ export default function Readiness() {
 
   return (
     <Screen top={<TopBar mid="Readiness" parent="/" />} panel={panel}>
-      <Label>
-        {f.horizonKind === 'trip' ? `Trip on ${fmtDate(f.horizonDate)} · ${f.daysLeft} days` : `Course ends · ${f.daysLeft} days`}
-        {busy ? ' · updating' : ''}
-      </Label>
-      <h1 className="h-xl" style={{ margin: '10px 0 14px', color: st.tone }}>{st.title}</h1>
-      <p className="body" style={{ margin: 0, maxWidth: '58ch' }}>{statusLine(f)}</p>
-      {!settings.tripDate && (
-        <p className="small" style={{ marginTop: 8 }}>No trip date is set, so this measures against the end of the course. Set one in Settings.</p>
-      )}
+      <div className="page-head">
+        <Label>
+          {f.horizonKind === 'trip' ? `Trip readiness · ${f.daysLeft} days to the flight` : `Course readiness · ${f.daysLeft} days to the end`}
+          {busy ? ' · updating' : ''}
+        </Label>
+        <h1 className="h-xl ready-word" style={{ color: st.tone }}>{st.title}</h1>
+        <p className="body" style={{ margin: '4px 0 0', maxWidth: '58ch' }}>{statusLine(f)}</p>
+        {!settings.tripDate && (
+          <p className="small" style={{ margin: 0 }}>No trip date is set, so this measures against the end of the course. Set one in Settings.</p>
+        )}
+      </div>
 
       {f.fix && (
-        <div className="card" style={{ marginTop: 22 }}>
+        <div className="card ready-fix">
           <Label>{f.fix.reaches ? 'The smallest change that gets you there' : 'The change that helps most'}</Label>
-          <div className="h-s" style={{ marginTop: 8 }}>{f.fix.lever.label}</div>
-          <p className="small" style={{ margin: '6px 0 0' }}>
+          <div className="ready-fix-title">{f.fix.lever.label}</div>
+          <p className="small" style={{ margin: 0 }}>
             Takes the forecast to about {pct(f.fix.p50)}{f.fix.reaches ? ', over the bar.' : `. Still short of ${pct(f.target)}; consider the 60-day course or a later trip.`}
           </p>
         </div>
       )}
 
-      <SectionHead title="The road to the trip" />
-      <ReadinessChart f={f} />
-
-      <SectionHead title="Place by place" note="Now → on the day" />
-      <div className="stack">
+      <section className="page-section">
+        <ListHead title="Place by place" note="Now → on the day" />
         {f.by.map((s) => (
-          <div key={s.id} className="row" style={{ cursor: 'default', alignItems: 'flex-start', flexDirection: 'column', gap: 8 }}>
-            <div className="hrow between" style={{ width: '100%' }}>
-              <span>{s.name}</span>
-              <span className="label num">{pct(s.now)} → {pct(s.band.p50)}</span>
+          <div key={s.id} className="ready-place">
+            <div className="ready-place-top">
+              <i style={{ background: placeColour(s.id), boxShadow: `0 0 10px ${placeColour(s.id)}` }} aria-hidden="true" />
+              <span className="ready-place-name">{s.name}</span>
+              <span className="small num fg2">{pct(s.now)} → {pct(s.band.p50)}</span>
             </div>
-            <BandMeter now={s.now} band={s.band} target={f.target} />
+            <PlaceBar now={s.now} band={s.band} target={f.target} colour={placeColour(s.id)} />
             <span className="small">{s.canDo}</span>
           </div>
         ))}
-      </div>
+      </section>
 
-      <SectionHead title="By then" />
-      <div className="stats">
-        <div className="stat"><div className="label">Met</div><div className="v num">{Math.round(f.met.p50)}</div></div>
-        <div className="stat"><div className="label">Can say</div><div className="v num">{Math.round(f.sayable.p50)}</div></div>
-        <div className="stat"><div className="label">Ready now</div><div className="v num">{pct(f.now)}</div></div>
+      <section className="page-section">
+        <ListHead title="By then" />
+        <div className="bigstats">
+          <div className="bigstat"><span className="v num">{Math.round(f.met.p50)}</span><span className="small">met</span></div>
+          <div className="bigstat"><span className="v num">{Math.round(f.sayable.p50)}</span><span className="small">can say</span></div>
+          <div className="bigstat"><span className="v num">{pct(f.now)}</span><span className="small">ready now</span></div>
+        </div>
+      </section>
+      <div style={{ marginTop: 20 }}>
+        <Note>
+          Readiness counts the words, phrases and letters the course teaches up to {f.horizonKind === 'trip' ? 'your trip' : 'its end'},
+          weighting survival phrases three times. Phase 1 to 3 run on a small placeholder set, so the numbers are a working demonstration
+          until the full course arrives.
+        </Note>
       </div>
-      <Note>
-        Readiness counts the words, phrases and letters the course teaches up to {f.horizonKind === 'trip' ? 'your trip' : 'its end'},
-        weighting survival phrases three times. Phase 1 to 3 run on a small placeholder set, so the numbers are a working demonstration
-        until the full course arrives.
-      </Note>
     </Screen>
   );
 }
@@ -156,16 +168,14 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** A range bar: now as a hollow tick, the trip-day range as a band, the middle as a solid tick, the bar as a hairline. */
-function BandMeter({ now, band, target }: { now: number; band: { p10: number; p50: number; p90: number }; target: number }) {
+/** A place's bar: on the day as a pale bar, now in the place's colour over it, the bar to reach as a hairline. */
+function PlaceBar({ now, band, target, colour }: { now: number; band: { p10: number; p50: number; p90: number }; target: number; colour: string }) {
   const x = (v: number) => `${Math.max(0, Math.min(1, v)) * 100}%`;
   return (
-    <div style={{ position: 'relative', height: 14, width: '100%' }} role="img" aria-label={`Now ${pct(now)}, on the day ${pct(band.p50)}, likely ${pct(band.p10)} to ${pct(band.p90)}`}>
-      <div style={{ position: 'absolute', top: 6, left: 0, right: 0, height: 2, background: 'var(--rule)' }} />
-      <div style={{ position: 'absolute', top: 3, height: 8, left: x(band.p10), width: `calc(${x(band.p90)} - ${x(band.p10)})`, background: 'rgba(242,242,242,.28)', borderRadius: 4 }} />
-      <div style={{ position: 'absolute', top: 0, height: 14, width: 2, left: x(band.p50), background: 'var(--fg)', borderRadius: 1 }} />
-      <div style={{ position: 'absolute', top: 2, height: 10, width: 10, marginLeft: -5, left: x(now), border: '2px solid var(--mut)', borderRadius: '50%', background: 'var(--bg)' }} />
-      <div style={{ position: 'absolute', top: -2, bottom: -2, width: 1, left: x(target), background: 'var(--amber)', opacity: 0.8 }} />
+    <div className="ready-bar" role="img" aria-label={`Now ${pct(now)}, on the day ${pct(band.p50)}, likely ${pct(band.p10)} to ${pct(band.p90)}`}>
+      <i style={{ width: x(band.p50), background: 'rgba(255, 255, 255, 0.22)' }} />
+      <i style={{ width: x(now), background: colour }} />
+      <b style={{ left: x(target) }} />
     </div>
   );
 }

@@ -56,6 +56,9 @@ a real person, and never use a real person's name or photo in a prompt.
 from __future__ import annotations
 
 import argparse
+import os
+import time
+from contextlib import contextmanager
 import json
 import math
 import shutil
@@ -68,7 +71,7 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 EXPRESSIONS = ["neutral", "smile", "puzzled", "sad", "closed", "turn"]
-CAST = ["nok", "ton", "ploy", "lek", "mai", "bank", "fah", "pim"]
+CAST = ["nok", "ton", "ploy", "lek", "mai", "bank", "fah", "pim", "theo"]
 SEQUENCES = ["palm", "wai", "handover", "glance", "walkaway"]
 PLACES = ["food", "taxi", "hotel", "market", "bar", "pharmacy"]
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp")
@@ -196,6 +199,26 @@ def load_manifest(out: Path) -> dict:
     return m
 
 
+@contextmanager
+def _manifest_lock(out: Path):
+    """A lock file beside the manifest, so parallel packs write it one at a time."""
+    lk = out / "manifest.lock"
+    for _ in range(600):
+        try:
+            fd = os.open(lk, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            break
+        except FileExistsError:
+            time.sleep(0.1)
+    try:
+        yield
+    finally:
+        try:
+            lk.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def save_manifest(out: Path, m: dict) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for k in ("people", "sequences", "objects", "scenes"):
@@ -292,7 +315,14 @@ def cmd_portraits(a) -> None:
         eng = engine(a)
         for who, exprs in found.items():
             pack_person(eng, who, exprs, out, m, a.size)
-        save_manifest(out, m)
+        # several packs may run side by side (one person each): re-read the manifest and
+        # write back only the people this run packed, so no run undoes another's
+        with _manifest_lock(out):
+            fresh = load_manifest(out)
+            for who in found:
+                if who in m["people"]:
+                    fresh["people"][who] = m["people"][who]
+            save_manifest(out, fresh)
         return
     depth = Depth(a.midas if a.depth == "midas" else "none")
     for who, exprs in found.items():

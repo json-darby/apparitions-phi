@@ -27,7 +27,7 @@ import WebSocket from 'ws';
 import type { Config } from '../config.ts';
 import { authHeaders, getAuth, type Auth } from '../auth.ts';
 import { log } from '../log.ts';
-import type { FunctionDeclaration } from './protocol.ts';
+import type { Directive, FunctionDeclaration } from './protocol.ts';
 
 export interface ToolCall {
   id: string;
@@ -54,6 +54,8 @@ export interface Upstream {
   activity(on: boolean): void;
   audio(pcm16k: Buffer): void;
   text(t: string): void;
+  /** a School of the Night step: a text turn for the model */
+  directive(d: Directive): void;
   toolResponse(id: string, name: string, response: Record<string, unknown>): void;
   close(): void;
   /** connections opened, including resumptions */
@@ -64,6 +66,15 @@ export interface UpstreamSetup {
   systemInstruction: string;
   tools: FunctionDeclaration[];
   voice: 'f' | 'm';
+  /** School of the Night's tutor: its own voice setting */
+  tutor?: boolean;
+}
+
+/** The prebuilt voice for a session, or null for the model's default voice. */
+export function voiceFor(c: Config, s: UpstreamSetup): string | null {
+  if (!s.tutor) return c.liveVoices[s.voice];
+  if (!c.liveTutorVoice) return null;
+  return c.liveTutorVoice === 'by-sex' ? c.liveVoices[s.voice] : c.liveTutorVoice;
 }
 
 export const GEMINI_LIVE_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
@@ -95,13 +106,14 @@ export function liveConnection(c: Config, auth: Auth): { url: string; headers: R
 
 /** The first message on every connection. Exported for tests. */
 export function setupMessage(c: Config, s: UpstreamSetup, handle: string | null) {
+  const voiceName = voiceFor(c, s);
   return {
     setup: {
       model: liveModelPath(c),
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: c.liveVoices[s.voice] } },
+          ...(voiceName ? { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } : {}),
           ...(c.liveLanguageCode ? { languageCode: c.liveLanguageCode } : {}),
         },
         temperature: 0.7,
@@ -269,6 +281,10 @@ export class VertexUpstream implements Upstream {
 
   text(t: string) {
     this.send({ clientContent: { turns: [{ role: 'user', parts: [{ text: t }] }], turnComplete: true } });
+  }
+
+  directive(d: Directive) {
+    this.text(d.text);
   }
 
   toolResponse(id: string, name: string, response: Record<string, unknown>) {

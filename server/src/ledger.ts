@@ -12,9 +12,9 @@ export interface UsageEntry {
   at: number;
   /** local date, YYYY-MM-DD */
   day: string;
-  kind: 'live' | 'stt';
+  kind: 'live' | 'stt' | 'text';
   model: string;
-  units: { seconds: number; connections?: number; bytes?: number };
+  units: { seconds: number; connections?: number; bytes?: number; tokensIn?: number; tokensOut?: number };
   usd: number;
   mock: boolean;
   note?: string;
@@ -96,6 +96,11 @@ export class Ledger {
   /** Live seconds already recorded today (mock included). */
   liveSecondsOn(day = localDay()): number {
     return this.entries.filter((e) => e.kind === 'live' && e.day === day).reduce((s, e) => s + e.units.seconds, 0);
+  }
+
+  /** School of the Night custom-lesson requests today (mock included); the calls inside one are not counted. */
+  customRequestsOn(day = localDay()): number {
+    return this.entries.filter((e) => e.kind === 'text' && e.day === day && e.note === 'school.request').length;
   }
 
   sttCallsOn(day = localDay()): number {

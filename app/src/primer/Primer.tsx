@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../app/context';
 import { useDevice } from '../app/device';
-import { navigate } from '../app/router';
+import { back as goBack, navigate } from '../app/router';
 import { TONE_LABEL } from '../audio/sound';
 import { PlayIcon } from '../audio/SoundLayer';
 import { sayForm, type Identity } from '../content/repo';
@@ -16,8 +16,10 @@ import { TONES, type Item, type Tone, type VoiceId } from '../content/types';
 import { useKeys } from '../input/keys';
 import { TONE_VERB, listenForm, sayTarget } from '../screens/learn/parts/common';
 import { ToneShape } from '../screens/learn/parts/ToneShape';
-import { KeyHints, Label, RunRail, Screen, TopBar } from '../ui/kit';
+import { Apparition } from '../anim/Apparition';
+import { FullscreenButton, KeyHints, Label } from '../ui/kit';
 import { FitText } from '../ui/FitText';
+import { StepShell, ToneLines } from '../ui/StepShell';
 import { contrastPair, earRounds, politeForms, primerVoice, romanExamples, toneExamples, type EarRound, type RomanPointId, type SpeakerForms } from './pick';
 import './primer.css';
 
@@ -25,11 +27,14 @@ const PAGES = ['Tones', 'Romanisation', 'Polite endings', 'Ear check', 'Each day
 const EAR = 3;
 
 type Play = (it: Item, hideRoman?: boolean) => void;
+/** the word last played, so its row shows it */
+type Playing = string | null;
 
 export default function Primer() {
-  const { content, settings, updateSettings, sound } = useApp();
+  const { content, settings, updateSettings, sound, reducedMotion } = useApp();
   const { device } = useDevice();
   const [page, setPage] = useState(0);
+  const [playing, setPlaying] = useState<Playing>(null);
   const firstRun = !settings.primerDone;
 
   const examples = useMemo(() => toneExamples(content.items), [content]);
@@ -42,6 +47,7 @@ export default function Primer() {
   const play: Play = (it, hideRoman = false) => {
     // words only one sex says get a matching voice
     const v: VoiceId = it.speaker ? (it.speaker === 'm' ? 'm1' : 'f1') : voice;
+    if (!hideRoman) setPlaying(it.id);
     void sound.play(listenForm(it, v, hideRoman));
   };
 
@@ -55,6 +61,7 @@ export default function Primer() {
   // a new page starts at the top; leaving one stops its sound (before the next page's own plays)
   useEffect(() => {
     window.scrollTo({ top: 0 });
+    setPlaying(null);
     return () => sound.stop();
   }, [page, sound]);
 
@@ -71,68 +78,100 @@ export default function Primer() {
     }
   });
 
+  const k = `How Thai works · ${page + 1} of ${PAGES.length}`;
   const pages = [
-    <TonesPage key="tones" examples={examples} pair={pair} play={play} />,
-    <RomanPage key="roman" examples={examples} roman={roman} play={play} />,
-    <PolitePage key="polite" polite={polite} identity={settings.identity} hello={content.item('hello')} play={play} />,
-    <EarPage key="ear" examples={examples} play={play} canHear={sound.mode === 'audio'} onNext={next} />,
-    <DayPage key="day" minutes={settings.minutes} />,
+    <TonesPage key="tones" k={k} examples={examples} pair={pair} play={play} playing={playing} />,
+    <RomanPage key="roman" k={k} examples={examples} roman={roman} play={play} />,
+    <PolitePage key="polite" k={k} polite={polite} identity={settings.identity} hello={content.item('hello')} play={play} playing={playing} />,
+    <EarPage key="ear" k={k} examples={examples} play={play} canHear={sound.mode === 'audio'} onNext={next} />,
+    <DayPage key="day" k={k} minutes={settings.minutes} />,
   ];
 
+  // a first run: the fifth step of set-up, filling as the pages go; opened again: one segment a page
+  const split = device !== 'phone';
   return (
-    <Screen
-      top={
-        <TopBar
-          mid="Thai basics"
-          parent={firstRun ? undefined : '/'}
-          right={firstRun ? <button type="button" className="pill small" onClick={finish}>Skip</button> : undefined}
-        />
+    <StepShell
+      step={firstRun ? 'Step 5 of 5' : null}
+      rail={firstRun ? { n: 5, at: 4, part: (page + 1) / PAGES.length, label: `Step 5 of 5, page ${page + 1} of ${PAGES.length}` } : { n: PAGES.length, at: page + 1, plain: true, label: `Page ${page + 1} of ${PAGES.length}` }}
+      art={
+        split ? (
+          <Apparition who="pim" mode={reducedMotion ? 'still' : 'idle'} colour="#E8E8E8" style={{ position: 'absolute', inset: 0 }} label="Pim, your guide" />
+        ) : (
+          <ToneLines on={page === 0 ? 2 : undefined} />
+        )
       }
-      narrow
+      artCaption={
+        <>
+          <Label>How Thai works</Label>
+          <span className="small">About five minutes</span>
+        </>
+      }
+      headRight={
+        <>
+          {firstRun ? (
+            <button type="button" className="pill text" onClick={finish}>Skip</button>
+          ) : (
+            <button type="button" className="pill text" onClick={() => goBack('/')}>Close</button>
+          )}
+          {device !== 'desktop' && !firstRun && <FullscreenButton />}
+        </>
+      }
+      foot={
+        <>
+          <div className="steps-btns">
+            <button type="button" className="pill big" onClick={back} disabled={page === 0}>Back</button>
+            <button type="button" className="pill solid big" onClick={next}>
+              {page < PAGES.length - 1 ? 'Next' : firstRun ? 'Start day 1' : 'Done'}
+            </button>
+          </div>
+          {device === 'desktop' && <KeyHints hints={[['→', 'Next'], ['←', 'Back'], ['1–5', 'Hear a word'], ['Space', 'Hear it again']]} />}
+        </>
+      }
     >
-      <RunRail n={page} total={PAGES.length} left={`${PAGES[page]} · ${page + 1} of ${PAGES.length}`} right="About five minutes" />
-      <div key={page} className="stack gap-4 fade-in">{pages[page]}</div>
-      <div className="primer-foot">
-        <div className="primer-btns">
-          <button type="button" className="pill" onClick={back} disabled={page === 0}>Back</button>
-          <button type="button" className="pill solid" onClick={next}>
-            {page < PAGES.length - 1 ? 'Next' : firstRun ? 'Start day 1' : 'Done'}
-          </button>
-        </div>
-        {device === 'desktop' && <KeyHints hints={[['→', 'Next'], ['←', 'Back'], ['1–5', 'Hear a word'], ['Space', 'Hear it again']]} />}
-      </div>
-    </Screen>
+      <div key={page} className="stack fade-in primer-page">{pages[page]}</div>
+    </StepShell>
   );
 }
 
-/** A word on one row: the tone's shape, its name, the word, and play. */
-function WordRow({ item, tone, note, play }: { item: Item | undefined; tone: Tone; note?: string; play: Play }) {
+const WAVE = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M6 9v6M10 6v12M14 8v8M18 10v4" />
+  </svg>
+);
+
+/**
+ * A word on one row: the tone's name, the word, and play. With a `note` (a
+ * role such as "ends a question") the note sits on a line above the word.
+ */
+function WordRow({ item, tone, note, play, playing }: { item: Item | undefined; tone: Tone; note?: string; play: Play; playing?: Playing }) {
+  const on = !!item && playing === item.id;
   return (
     <button
       type="button"
-      className="primer-tone"
+      className={`primer-tone ${note ? 'two' : ''} ${on ? 'on' : ''}`}
       onClick={() => item && play(item)}
       disabled={!item}
-      aria-label={item ? `${TONE_LABEL[tone]} tone: ${item.roman}, ${item.en}` : `${TONE_LABEL[tone]} tone, no recorded word`}
+      title={`${TONE_LABEL[tone]} · ${TONE_VERB[tone]}`}
+      aria-label={item ? `${note ? `${note}: ` : ''}${TONE_LABEL[tone]} tone: ${item.roman}, ${item.en}` : `${TONE_LABEL[tone]} tone, no recorded word`}
     >
-      <ToneShape tone={tone} w={72} h={32} />
-      {/* every row one height: the label line and one word line, which shrinks to fit */}
+      {!note && <span className="primer-tone-name">{TONE_LABEL[tone]}</span>}
+      {/* every row one height: the word line shrinks to fit, never wraps */}
       <span className="grow primer-tone-text">
-        <FitText as="span" className="label" min={8}>{note ?? `${TONE_LABEL[tone]} · ${TONE_VERB[tone]}`}</FitText>
+        {note && <FitText as="span" className="label" min={8}>{note}</FitText>}
         {item ? (
           <FitText as="span" className="primer-word" min={11}>
-            <span className="thai-m" lang="th">{item.thai}</span> <span className="roman">{item.roman} · {item.en}</span>
+            <span className="thai-m" lang="th">{item.thai}</span> <span className="roman">{item.roman} <span className="mut">· {item.en}</span></span>
           </FitText>
         ) : (
           <FitText as="span" className="small primer-word" min={10}>No recorded word for this tone in this course.</FitText>
         )}
       </span>
-      {item && <span className="play"><PlayIcon size={14} /></span>}
+      {item && <span className="play">{on ? WAVE : <PlayIcon size={16} />}</span>}
     </button>
   );
 }
 
-function TonesPage({ examples, pair, play }: { examples: Partial<Record<Tone, Item>>; pair: [Item, Item] | null; play: Play }) {
+function TonesPage({ k, examples, pair, play, playing }: { k: string; examples: Partial<Record<Tone, Item>>; pair: [Item, Item] | null; play: Play; playing: Playing }) {
   useKeys((a) => {
     if (a.type === 'rate' && a.n <= 5) {
       const it = examples[TONES[a.n - 1]];
@@ -142,14 +181,13 @@ function TonesPage({ examples, pair, play }: { examples: Partial<Record<Tone, It
   });
   return (
     <>
-      <Label>Tones</Label>
-      <h1 className="h-l">Five tones</h1>
+      <PageHead k={k} title="Five tones." />
       <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
         Thai is a tonal language: the pitch a syllable is said at is part of the word, like a vowel. One sound said at five different pitches is five different words. Tap each one and listen for the shape of the line.
       </p>
       <div className="primer-list">
         {TONES.map((t) => (
-          <WordRow key={t} item={examples[t]} tone={t} play={play} />
+          <WordRow key={t} item={examples[t]} tone={t} play={play} playing={playing} />
         ))}
       </div>
       {pair && (
@@ -157,7 +195,7 @@ function TonesPage({ examples, pair, play }: { examples: Partial<Record<Tone, It
           <Label>Same sound, different tone, different word</Label>
           <div className="primer-list">
             {pair.map((it) => (
-              <WordRow key={it.id} item={it} tone={it.tones[0]} note={TONE_LABEL[it.tones[0]]} play={play} />
+              <WordRow key={it.id} item={it} tone={it.tones[0]} play={play} playing={playing} />
             ))}
           </div>
           <p className="small" style={{ margin: 0 }}>Get the tone wrong and you have said a different word. The shape of the line is what to listen for.</p>
@@ -180,11 +218,10 @@ const POINTS: { id: RomanPointId; title: string; body: string }[] = [
   { id: 'final', title: 'A final p, t or k is cut short', body: 'The mouth closes on it and no air comes out. It sounds swallowed; that is right.' },
 ];
 
-function RomanPage({ examples, roman, play }: { examples: Partial<Record<Tone, Item>>; roman: Record<RomanPointId, Item | null>; play: Play }) {
+function RomanPage({ k, examples, roman, play }: { k: string; examples: Partial<Record<Tone, Item>>; roman: Record<RomanPointId, Item | null>; play: Play }) {
   return (
     <>
-      <Label>Romanisation</Label>
-      <h1 className="h-l">Reading the romanisation</h1>
+      <PageHead k={k} title="Reading the romanisation" />
       <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
         Under every Thai word you will see it spelt in Latin letters, with the tone marked over the vowel. The romanisation is a crutch: use it to get the sound right, and read the Thai script beside it. The script is taught alongside from day 1, and the romanisation fades as a word gets stronger.
       </p>
@@ -233,19 +270,19 @@ const ROLE: Record<string, string> = {
   'i-female': 'I',
 };
 
-function FormRows({ forms, play }: { forms: SpeakerForms; play: Play }) {
+function FormRows({ forms, play, playing }: { forms: SpeakerForms; play: Play; playing: Playing }) {
   const items = [...forms.endings, ...(forms.i ? [forms.i] : [])];
   if (!items.length) return <p className="small" style={{ margin: 0 }}>These words are not in this course yet.</p>;
   return (
     <div className="primer-list">
       {items.map((it) => (
-        <WordRow key={it.id} item={it} tone={it.tones[0]} note={ROLE[it.id] ?? it.en} play={play} />
+        <WordRow key={it.id} item={it} tone={it.tones[0]} note={ROLE[it.id] ?? it.en} play={play} playing={playing} />
       ))}
     </div>
   );
 }
 
-function PolitePage({ polite, identity, hello, play }: { polite: Record<Identity, SpeakerForms>; identity: Identity; hello: Item | undefined; play: Play }) {
+function PolitePage({ k, polite, identity, hello, play, playing }: { k: string; playing: Playing; polite: Record<Identity, SpeakerForms>; identity: Identity; hello: Item | undefined; play: Play }) {
   const { sound } = useApp();
   const other: Identity = identity === 'm' ? 'f' : 'm';
   const who = (id: Identity) => (id === 'm' ? 'men' : 'women');
@@ -253,14 +290,13 @@ function PolitePage({ polite, identity, hello, play }: { polite: Record<Identity
   const hearHello = () => hello && void sound.play({ ...sayTarget(hello, identity), voice: identity === 'm' ? 'm1' : 'f1' });
   return (
     <>
-      <Label>Polite endings</Label>
-      <h1 className="h-l">Polite endings and “I”</h1>
+      <PageHead k={k} title="Polite endings and “I”" />
       <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
         Most polite sentences end with a short word. Which one depends on who is speaking, not who is spoken to. “I” changes the same way.
       </p>
       <div className="stack gap-2">
         <Label fg>You say · {identity === 'm' ? 'male' : 'female'} forms</Label>
-        <FormRows forms={polite[identity]} play={play} />
+        <FormRows forms={polite[identity]} play={play} playing={playing} />
         {said && (
           <button type="button" className="primer-ex" onClick={hearHello} aria-label={`Hear ${said.roman}`}>
             <span className="play"><PlayIcon size={12} /></span>
@@ -271,14 +307,14 @@ function PolitePage({ polite, identity, hello, play }: { polite: Record<Identity
       </div>
       <div className="stack gap-2">
         <Label>You will hear from {who(other)}</Label>
-        <FormRows forms={polite[other]} play={play} />
+        <FormRows forms={polite[other]} play={play} playing={playing} />
       </div>
       <p className="small" style={{ margin: 0 }}>You chose {identity === 'm' ? 'male' : 'female'} forms in set-up. Change it any time in Settings.</p>
     </>
   );
 }
 
-function EarPage({ examples, play, canHear, onNext }: { examples: Partial<Record<Tone, Item>>; play: Play; canHear: boolean; onNext: () => void }) {
+function EarPage({ k, examples, play, canHear, onNext }: { k: string; examples: Partial<Record<Tone, Item>>; play: Play; canHear: boolean; onNext: () => void }) {
   const [rounds] = useState<EarRound[]>(() => earRounds(examples));
   const [at, setAt] = useState(0);
   const [picked, setPicked] = useState<Tone | null>(null);
@@ -327,8 +363,7 @@ function EarPage({ examples, play, canHear, onNext }: { examples: Partial<Record
   if (!canHear || !rounds.length) {
     return (
       <>
-        <Label>Ear check</Label>
-        <h1 className="h-l">A quick ear check</h1>
+        <PageHead k={k} title="A quick ear check" />
         <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
           {canHear ? 'This course has too few recorded words for the check.' : 'The check needs the course sound, which is off or not in this build.'} Skip ahead: the tone lab does the same job every day.
         </p>
@@ -338,8 +373,7 @@ function EarPage({ examples, play, canHear, onNext }: { examples: Partial<Record
   if (done) {
     return (
       <>
-        <Label>Ear check · done</Label>
-        <h1 className="h-l">That is the idea.</h1>
+        <PageHead k={`${k} · done`} title="That is the idea." />
         <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
           Hearing tones takes a while. The tone lab trains it every day, and review brings words back before they fade. Nothing here was saved.
         </p>
@@ -349,8 +383,7 @@ function EarPage({ examples, play, canHear, onNext }: { examples: Partial<Record
   const right = picked === round!.tone;
   return (
     <>
-      <Label>Ear check · {at + 1} of {rounds.length}</Label>
-      <h1 className="h-l">Which shape did you hear?</h1>
+      <PageHead k={`${k} · word ${at + 1} of ${rounds.length}`} title="Which shape did you hear?" />
       <div>
         <button type="button" className="pill" onClick={() => play(round!.item, !picked)}>
           <PlayIcon size={12} /> Hear it again
@@ -383,11 +416,10 @@ function EarPage({ examples, play, canHear, onNext }: { examples: Partial<Record
   );
 }
 
-function DayPage({ minutes }: { minutes: number }) {
+function DayPage({ k, minutes }: { k: string; minutes: number }) {
   return (
     <>
-      <Label>Each day</Label>
-      <h1 className="h-l">How a day works</h1>
+      <PageHead k={k} title="How a day works" />
       <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
         About {minutes} minutes, in this order. Today shows the next step with one button; everything else stays open below it.
       </p>
@@ -415,5 +447,15 @@ function DayPage({ minutes }: { minutes: number }) {
       </ol>
       <p className="small" style={{ margin: 0 }}>On day 1 the words come first and review last, because there is nothing to review yet.</p>
     </>
+  );
+}
+
+/** A page's label and title, in the place every set-up step keeps them. */
+function PageHead({ k, title }: { k: string; title: string }) {
+  return (
+    <div className="stack gap-2">
+      <Label>{k}</Label>
+      <h1 className="h-l primer-title">{title}</h1>
+    </div>
   );
 }

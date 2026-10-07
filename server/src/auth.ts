@@ -8,6 +8,8 @@
 //     service's own service account), otherwise a Vertex API key.
 //   Speech-to-Text: always ADC with PHI_GCP_PROJECT (the recognizer path names
 //     the project); without a project the speech check reports unavailable.
+//   Text (custom lessons): ADC with PHI_GCP_PROJECT (Vertex, like the
+//     pipeline), otherwise PHI_API_KEY.
 //
 // google-auth-library is loaded lazily so mock mode never touches it.
 
@@ -17,7 +19,7 @@ export type Auth =
   | { kind: 'bearer'; token: string }
   | { kind: 'key'; key: string };
 
-export type Purpose = 'live' | 'stt';
+export type Purpose = 'live' | 'stt' | 'text';
 
 let client: { getAccessToken(): Promise<{ token?: string | null } | string | null | undefined> } | null = null;
 
@@ -40,7 +42,7 @@ export async function getAuth(c: Config, purpose: Purpose = 'live'): Promise<Aut
     throw new Error('no credentials: Live over the Gemini API needs PHI_API_KEY');
   }
   if (c.project) return adc();
-  if (purpose === 'live' && c.apiKey) return { kind: 'key', key: c.apiKey };
+  if ((purpose === 'live' || purpose === 'text') && c.apiKey) return { kind: 'key', key: c.apiKey };
   throw new Error(purpose === 'stt' ? 'no credentials: the speech check needs PHI_GCP_PROJECT' : 'no credentials: set PHI_API_KEY or PHI_GCP_PROJECT');
 }
 

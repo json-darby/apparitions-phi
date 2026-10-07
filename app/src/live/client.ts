@@ -56,6 +56,16 @@ export interface StartMsg {
   adult: boolean;
   adultTask: boolean;
   script?: TaskScript;
+  /** a School of the Night lesson: the tutor, driven by directives */
+  tutor?: boolean;
+}
+/** One School of the Night step for the model, sent as a text turn (see server/src/live/protocol.ts). */
+export interface Directive {
+  step: string;
+  text: string;
+  say?: string;
+  expect?: { lineId: string; thai: string }[];
+  slower?: boolean;
 }
 export type LimitReason = 'daily' | 'session' | 'budget' | 'rate' | 'busy';
 export type ServerMsg =
@@ -78,6 +88,8 @@ export interface Health {
   needsCode?: boolean;
   live: { available: boolean; model: string; minutesPerDay: number; minutesLeft: number; active: number };
   stt: { available: boolean; model: string; callsLeftToday: number };
+  /** School of the Night custom lessons (absent on an older server) */
+  custom?: { available: boolean; requestsLeftToday: number };
   budget: { ok: boolean; spentUsd: number; capUsd: number };
 }
 
@@ -439,6 +451,10 @@ export interface LiveHandlers {
   ended?(reason: string, seconds: number): void;
   /** the character's voice is playing */
   speaking?(on: boolean): void;
+  /** each chunk of the character's voice as it arrives (PCM16 24 kHz), to keep a line for replay */
+  npcAudio?(chunk: ArrayBuffer): void;
+  /** each frame of the learner's voice sent while talking (PCM16 16 kHz), to score it on the device */
+  learnerAudio?(pcm: Int16Array): void;
 }
 
 export interface LiveClientOptions {
@@ -509,6 +525,7 @@ export class LiveClient {
         if (typeof e.data !== 'string') {
           this.npcNow.push(e.data as ArrayBuffer);
           this.player?.play(e.data as ArrayBuffer);
+          this.h.npcAudio?.(e.data as ArrayBuffer);
           return;
         }
         let m: ServerMsg;
@@ -627,6 +644,7 @@ export class LiveClient {
         if (!this.mic) {
           this.mic = new Mic((pcm) => {
             if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(pcm.buffer as ArrayBuffer);
+            this.h.learnerAudio?.(pcm);
           });
         }
         try {
@@ -653,6 +671,21 @@ export class LiveClient {
   sendText(text: string) {
     this.learnerTurn();
     this.send({ type: 'text', text });
+  }
+
+  /** A School of the Night step: the model gets it as a text turn. */
+  sendDirective(directive: Directive) {
+    this.player?.interrupt();
+    this.learnerTurn();
+    this.send({ type: 'directive', directive });
+  }
+
+  /** Play kept chunks of the character's voice again, on this device only. */
+  playChunks(chunks: ArrayBuffer[]): boolean {
+    if (!this.player || !chunks.length) return false;
+    this.player.interrupt();
+    for (const c of chunks) this.player.play(c.slice(0));
+    return true;
   }
 
   /** The learner is about to speak: what the character said so far becomes "their last line". */
