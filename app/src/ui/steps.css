@@ -1,33 +1,36 @@
 /* The step shell (ui/StepShell.tsx) and the welcome page. Built on global.css and shell.css. */
 
-.steps { min-height: 100dvh; display: flex; flex-direction: column; }
-.steps-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.steps { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+/* one screen tall: Pim's band gives way first, and only a very short screen scrolls (inside the page, so Back and Next stay put) */
+.steps-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
 
 .steps-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: none;
-  min-height: calc(64px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--gutter) 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+  min-height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) var(--gutter) 0;
 }
 .steps-head > .logo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.steps-head-right { display: flex; align-items: center; gap: 10px; flex: none; }
-.steps-head-right .pill.text { min-height: 44px; padding: 0 10px; margin-right: -10px; }
+.steps-head-right { display: flex; align-items: center; gap: 6px; flex: none; }
+.steps-head-right .pill.text { min-height: 44px; padding: 0 8px; margin-right: -6px; }
+.steps-head-right .fs-btn { margin-right: -8px; }
 .steps-rail { padding: 0 var(--gutter); flex: none; }
 
-/* the art band: Pim at the right, faded into the ground at its foot */
-.steps-art { position: relative; flex: none; height: 176px; overflow: hidden; }
+/* the art band: Pim at the right, faded into the ground at its foot. 176 px when
+   there is room; it shrinks (to 88) before anything else does, and goes last of all (data-fit 3) */
+.steps-art { position: relative; flex: 0 1 176px; min-height: 88px; overflow: hidden; }
 .steps-art::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50px; pointer-events: none;
   background: linear-gradient(to bottom, rgba(5, 5, 5, 0), var(--bg));
 }
-.steps-art .tone-lines { position: absolute; left: 50%; top: 22px; width: min(350px, calc(100% - 2 * var(--gutter))); height: auto; transform: translateX(-50%); }
+.steps-art .tone-lines { position: absolute; left: 50%; top: 16px; height: calc(100% - 28px); width: auto; max-width: calc(100% - 2 * var(--gutter)); transform: translateX(-50%); }
 
-.steps-body { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); min-width: 0; }
+.steps-body { flex: 1 0 auto; display: flex; flex-direction: column; gap: 14px; padding: 0 var(--gutter); min-width: 0; }
 .steps-body .h-l { margin: 0; }
 .steps-body .body { margin: 0; }
 
-/* Back and Next stay at the foot of the screen, long page or short */
+/* Back and Next sit in the same place on every page: the foot of the screen */
 .steps-foot {
   position: sticky; bottom: 0; z-index: 4; flex: none; display: flex; flex-direction: column; gap: 14px;
-  padding: 20px var(--gutter) max(32px, calc(16px + env(safe-area-inset-bottom)));
+  padding: 12px var(--gutter) max(16px, calc(8px + env(safe-area-inset-bottom)));
   background: linear-gradient(to bottom, rgba(5, 5, 5, 0), var(--bg) 16px);
 }
 .steps-btns { display: flex; gap: 10px; }
@@ -38,23 +41,47 @@
 /* tablet and desktop: the art fills the left half, the words sit on the right */
 .steps.split { flex-direction: row; }
 .steps.split .steps-art {
-  width: 44%; max-width: 520px; height: 100dvh; position: sticky; top: 0; border-right: 1px solid var(--rule);
+  flex: none; width: 44%; max-width: 520px; height: 100%; border-right: 1px solid var(--rule);
 }
 .steps.split .steps-art::after { display: none; }
 .steps.split .steps-art { --face-w: 100%; }
 .steps.split .steps-art .tone-lines { top: 50%; transform: translate(-50%, -50%); width: min(350px, 80%); }
 .steps-art-caption { position: absolute; left: 32px; right: 32px; bottom: 32px; z-index: 2; display: flex; flex-direction: column; gap: 4px; }
 .steps.split .steps-main { padding: 0 48px 0; }
-.steps.split .steps-head { min-height: 80px; padding: 0; }
+.steps.split .steps-head { min-height: clamp(64px, 10dvh, 80px); padding: 0; }
 .steps.split .steps-rail { padding: 0; }
-.steps.split .steps-body { padding: 0; margin-top: clamp(32px, 9vh, 88px); max-width: 520px; gap: 20px; }
+.steps.split .steps-body { padding: 0; margin-top: clamp(16px, 13dvh - 56px, 88px); max-width: 520px; gap: clamp(14px, 2.6dvh, 20px); }
 .steps.split .body { font-size: 17px; }
-.steps.split .steps-foot { padding: 32px 0 40px; max-width: 520px; width: 100%; }
+.steps.split .steps-foot { padding: clamp(16px, 3dvh, 32px) 0 clamp(20px, 4dvh, 40px); max-width: 520px; width: 100%; }
 @media (max-width: 899px) { .steps.split .steps-main { padding: 0 32px; } }
+/* Fitting a page that still overflows (StepShell sets data-fit, one level at a time).
+   1: the spacing closes up. 2: boxes and rows get shorter. 3: the art band goes (a phone)
+   or the title steps down (a tablet or desktop). 4: the type steps down. Text sizes are the last thing touched. */
+.steps:not([data-fit='0']) .steps-body { gap: 10px; }
+.steps.split:not([data-fit='0']) .steps-body { gap: 12px; margin-top: 12px; }
+.steps:not([data-fit='0']) .steps-foot { padding-top: 8px; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-title { min-height: 0; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-head { min-height: calc(48px + env(safe-area-inset-top)); }
+.steps.split:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-head { min-height: 56px; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .opt { min-height: 56px; padding-top: 12px; padding-bottom: 12px; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .opt.big { padding-top: 8px; padding-bottom: 8px; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .date-box { height: 56px; }
+.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .step-facts { padding-top: 10px; }
+.steps:not(.split):is([data-fit='3'], [data-fit='4']) .steps-art { display: none; }
+.steps:not(.split):is([data-fit='3'], [data-fit='4']) .steps-rail { padding-bottom: 16px; }
+.steps.split:is([data-fit='3'], [data-fit='4']) .h-l { font-size: 40px; }
+.steps.split:is([data-fit='3'], [data-fit='4']) .steps-foot { padding-bottom: 16px; }
+.steps[data-fit='4'] .h-l { font-size: 30px; }
+.steps[data-fit='4'] .body { line-height: 1.4; }
+.steps[data-fit='4'] .steps-body { gap: 8px; }
 
 /* a question's title: the same two-line box on every step, so the words below never jump */
 .steps-title { min-height: 72px; text-wrap: balance; }
 .steps.split .steps-title { min-height: 0; }
+
+/* the big 30 / 60 cards ease down a little on a short screen; tall screens keep them as they were */
+.steps .opt.big { padding: clamp(10px, 1.7dvh, 14px) 16px; gap: clamp(2px, 0.5dvh, 4px); }
+.steps .opt.big .opt-title { font-size: clamp(22px, 3.6dvh, 28px); line-height: 1.15; }
 
 /* two facts side by side under a choice */
 .step-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-top: 1px solid var(--rule); padding-top: 14px; }
@@ -92,9 +119,13 @@
 .check-line input { width: 20px; height: 20px; margin: 0; accent-color: var(--fg); }
 
 /* ---------- welcome ---------- */
-.welcome { min-height: 100dvh; display: flex; flex-direction: column; }
-.welcome-art { flex: 1 1 392px; max-height: 392px; min-height: 200px; margin-top: env(safe-area-inset-top); position: relative; }
-.welcome-body { flex: 1 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 0 var(--gutter) max(32px, calc(16px + env(safe-area-inset-bottom))); }
+.welcome { position: relative; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain; }
+/* Pim takes what the words leave: up to 392 px, never under 200 (120 on a very short screen) */
+.welcome-art { flex: 0 1 392px; min-height: 200px; margin-top: env(safe-area-inset-top); position: relative; }
+@media (max-height: 599px) { .welcome:not(.split) .welcome-art { min-height: 120px; } }
+.welcome-body { flex: 1 0 auto; display: flex; flex-direction: column; gap: 16px; padding: 0 var(--gutter) max(16px, calc(8px + env(safe-area-inset-bottom))); }
+/* full screen, top right, where the step pages keep it */
+.welcome-fs { position: absolute; z-index: 3; top: calc(10px + env(safe-area-inset-top)); right: calc(var(--gutter) - 8px); }
 .welcome-name { display: flex; align-items: baseline; gap: 14px; }
 .welcome-name h1 { margin: 0; font-size: 96px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.86; }
 .welcome-name .thai { font-size: 40px; font-weight: 600; color: var(--mut); }
@@ -104,14 +135,14 @@
 .tone-hook svg { flex: none; }
 .tone-hook b { display: block; font-size: 15px; font-weight: 600; }
 .tone-hook .small { display: block; }
-.welcome-go { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+.welcome-go { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
 .welcome-go .pill { height: 56px; }
-.welcome-go .small { text-align: center; }
 @media (max-width: 389px) { .tone-hook svg { width: 28px; } .tone-hook > div + div { padding-left: 10px; } }
 @media (max-width: 359px) { .welcome-name h1 { font-size: 80px; } }
 
 .welcome.split { flex-direction: row; }
-.welcome.split .welcome-art { flex: none; width: 44%; max-width: 520px; max-height: none; height: 100dvh; position: sticky; top: 0; border-right: 1px solid var(--rule); margin: 0; }
+.welcome.split .welcome-art { flex: none; width: 44%; max-width: 520px; height: 100%; min-height: 0; border-right: 1px solid var(--rule); margin: 0; }
+.welcome.split .welcome-fs { top: 20px; right: 28px; }
 .welcome.split .welcome-body { flex: 1; justify-content: center; padding: 48px; max-width: 616px; }
 .welcome.split .welcome-go { margin-top: 24px; }
 .welcome.split .body { font-size: 17px; }

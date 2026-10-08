@@ -18,7 +18,7 @@ import { PLACE_COLOURS } from '../content/types';
 import { usePixi } from '../games/shared/pixi';
 import { shuffle } from '../games/shared/drill';
 import { useKeys } from '../input/keys';
-import { KeyHints, Label, Logo, Note, Row } from '../ui/kit';
+import { FullscreenButton, KeyHints, Label, Logo, Note, Row } from '../ui/kit';
 import { FitText } from '../ui/FitText';
 import { DialogueRun, type Outcome } from './dialogue';
 import { DialoguePanel } from './parts/DialoguePanel';
@@ -34,6 +34,7 @@ const AMBER = '#FFB03A';
 
 export default function MetersRunning() {
   const { settings, content } = useApp();
+  const { device } = useDevice();
   const route = useRoute();
   const q = Number(route.query.get('part'));
   const [street] = useStreet();
@@ -62,7 +63,10 @@ export default function MetersRunning() {
         <div className="topbar">
           <Logo />
           <div className="mid label fg">Meter's Running</div>
-          <div className="right"><Link to="/street" className="pill small">Back</Link></div>
+          <div className="right">
+            {device !== 'desktop' && <FullscreenButton />}
+            <Link to="/street" className="pill small">Back</Link>
+          </div>
         </div>
         <div className="stage narrow">
           <Label>Street chapter · Taxi</Label>
@@ -399,6 +403,7 @@ function Ride({ part, phase, setPhase, onAgain, onPick }: { part: MeterPart; pha
           <Logo />
           <div className="mid label fg">Meter's Running · {part.part === 1 ? 'Part 1' : 'Part 2'}</div>
           <div className="right">
+            {device !== 'desktop' && <FullscreenButton />}
             <button type="button" className="pill small" onClick={onPick}>Parts</button>
           </div>
         </div>

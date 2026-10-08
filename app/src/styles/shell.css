@@ -180,12 +180,13 @@ a.logo { display: inline-flex; align-items: center; min-height: 44px; }
 .game-hud { display: flex; justify-content: space-between; padding: 0 var(--gutter); gap: 12px; }
 .game-hud .v { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
 
-/* full screen toggle (top bar on phone and tablet, rail foot on desktop) */
+/* full screen toggle (top bar on phone and tablet, rail foot on desktop): a quiet icon, no ring */
 .fs-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--rule);
-  background: transparent; color: var(--fg-2); cursor: pointer; flex: none;
+  width: 36px; height: 36px; border-radius: 999px; border: 1px solid transparent;
+  background: transparent; color: var(--mut); cursor: pointer; flex: none;
 }
+.fs-btn.wide { color: var(--fg-2); }
 .fs-btn:hover { color: var(--fg); background: var(--chip); }
 .fs-btn { position: relative; }
 .fs-btn:not(.wide)::after { content: ''; position: absolute; inset: -4px; }

@@ -26,7 +26,7 @@ export function FullscreenButton({ wide }: { wide?: boolean }) {
   const label = on ? 'Exit full screen' : 'Full screen';
   return (
     <button className={wide ? 'fs-btn wide' : 'fs-btn'} onClick={() => void toggleFullscreen()} aria-label={label} title={label}>
-      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" width={wide ? 18 : 16} height={wide ? 18 : 16} aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={wide ? 1.8 : 1.6} strokeLinecap="round" strokeLinejoin="round">
         {on ? (
           <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
         ) : (

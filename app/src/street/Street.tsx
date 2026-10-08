@@ -15,7 +15,7 @@ import { STREET_SIGNS, taskById, tasksFor, type StreetTaskBuilt } from '../conte
 import type { PlaceId } from '../content/types';
 import { shuffle } from '../games/shared/drill';
 import { useKeys } from '../input/keys';
-import { KeyHints, Label, Logo, Row, Sheet } from '../ui/kit';
+import { FullscreenButton, KeyHints, Label, Logo, Row, Sheet } from '../ui/kit';
 import { FitText } from '../ui/FitText';
 import { GROUND_Y, KERB_Y, PX_PER_M, SHOP_LIGHTS, smooth, SIGN_BOARDS, STREET_W, THEO_SHOP, WALK_MAX, WALK_MIN, heightPx, layoutLabels, paceTo, viewFor, worldX } from './geometry';
 import { HudStat, placeColour, useStreet, useToast } from './parts/common';
@@ -493,6 +493,7 @@ export default function Street() {
         {device !== 'desktop' ? <Logo /> : <span />}
         <div className="mid label fg">The Street · Walk</div>
         <div className="right">
+          {device !== 'desktop' && <FullscreenButton />}
           <Link to="/" className="pill small">Leave</Link>
         </div>
       </div>

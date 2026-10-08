@@ -7,7 +7,7 @@ import { useDevice } from '../app/device';
 import { navigate } from '../app/router';
 import { Apparition } from '../anim/Apparition';
 import { addDays, daysBetween, localDate } from '../core/dates';
-import { Label, OptionCards } from '../ui/kit';
+import { FullscreenButton, Label, OptionCards } from '../ui/kit';
 import { FitText } from '../ui/FitText';
 import { StepShell } from '../ui/StepShell';
 import { useKeys } from '../input/keys';
@@ -71,6 +71,7 @@ export default function Welcome() {
     const split = device !== 'phone';
     return (
       <div className={`welcome ${split ? 'split' : ''}`}>
+        <span className="welcome-fs"><FullscreenButton /></span>
         {/* the face fills the space above the words (beside them on a tablet), never behind them */}
         <div className="welcome-art">
           <Apparition who="pim" mode={reducedMotion ? 'still' : 'gather'} colour="#E8E8E8" style={{ position: 'absolute', inset: 0 }} label="Pim, your guide, gathering out of light" />
@@ -101,9 +102,10 @@ export default function Welcome() {
               </span>
             </div>
           </div>
+          {/* Begin sits where Next does on the pages after it */}
           <div className="welcome-go">
-            <button type="button" className="pill solid big wide" onClick={next}>Begin</button>
             <span className="small">{settings.primerDone ? 'Four questions' : 'Four questions, then five minutes on how Thai works'}</span>
+            <button type="button" className="pill solid big wide" onClick={next}>Begin</button>
           </div>
         </div>
       </div>
@@ -212,6 +214,7 @@ export default function Welcome() {
     <StepShell
       step={`Step ${step} of ${total}`}
       rail={{ n: total, at: step, plain: true, label: `Step ${step} of ${total}` }}
+      page={step}
       art={<Apparition who="pim" mode={reducedMotion ? 'still' : 'idle'} colour="#E8E8E8" clarity={CLARITY[step - 1]} style={FACE} label="Pim, your guide" />}
       artCaption={
         <>

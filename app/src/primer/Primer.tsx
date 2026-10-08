@@ -1,11 +1,12 @@
-// How Thai works: five short pages for someone who has never seen Thai. The
+// How Thai works: five short sections for someone who has never seen Thai. The
 // five tones, reading the romanisation, polite endings and "I", a quick ear
-// check, and how a day works. Every sound is a real clip from the course,
+// check, and how a day works. Each section is split into pages that fit a phone
+// screen, so nothing scrolls and Back and Next never move. Every sound is a real clip from the course,
 // picked at runtime (pick.ts). Nothing here reaches the memory engine.
 // Finishing or skipping sets settings.primerDone; Welcome sends a first run
 // here, and the Library has a way back.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useApp } from '../app/context';
 import { useDevice } from '../app/device';
 import { back as goBack, navigate } from '../app/router';
@@ -17,14 +18,15 @@ import { useKeys } from '../input/keys';
 import { TONE_VERB, listenForm, sayTarget } from '../screens/learn/parts/common';
 import { ToneShape } from '../screens/learn/parts/ToneShape';
 import { Apparition } from '../anim/Apparition';
-import { FullscreenButton, KeyHints, Label } from '../ui/kit';
+import { KeyHints, Label } from '../ui/kit';
 import { FitText } from '../ui/FitText';
 import { StepShell, ToneLines } from '../ui/StepShell';
 import { contrastPair, earRounds, politeForms, primerVoice, romanExamples, toneExamples, type EarRound, type RomanPointId, type SpeakerForms } from './pick';
 import './primer.css';
 
-const PAGES = ['Tones', 'Romanisation', 'Polite endings', 'Ear check', 'Each day'];
-const EAR = 3;
+const SECTIONS = ['Tones', 'Romanisation', 'Polite endings', 'Ear check', 'Each day'];
+/** romanisation points on one page */
+const POINTS_PER_PAGE = 2;
 
 type Play = (it: Item, hideRoman?: boolean) => void;
 /** the word last played, so its row shows it */
@@ -55,12 +57,28 @@ export default function Primer() {
     updateSettings({ primerDone: true });
     navigate('/', true);
   };
-  const next = () => (page < PAGES.length - 1 ? setPage(page + 1) : finish());
-  const back = () => page > 0 && setPage(page - 1);
+  // every page, in order, with the section it belongs to
+  const k = (s: number) => `How Thai works · ${s + 1} of ${SECTIONS.length}`;
+  const pages: { s: number; ear?: boolean; el: ReactNode }[] = [
+    { s: 0, el: <TonesIntro k={k(0)} /> },
+    { s: 0, el: <TonesList k={k(0)} examples={examples} play={play} playing={playing} /> },
+    ...(pair ? [{ s: 0, el: <TonesPair k={k(0)} pair={pair} play={play} playing={playing} /> }] : []),
+    { s: 1, el: <RomanMarks k={k(1)} examples={examples} play={play} /> },
+    ...chunk(POINTS, POINTS_PER_PAGE).map((points) => ({ s: 1, el: <RomanPoints k={k(1)} points={points} roman={roman} play={play} /> })),
+    { s: 2, el: <PoliteSay k={k(2)} polite={polite} identity={settings.identity} hello={content.item('hello')} play={play} playing={playing} /> },
+    { s: 2, el: <PoliteHear k={k(2)} polite={polite} identity={settings.identity} play={play} playing={playing} /> },
+    { s: 3, ear: true, el: <EarPage k={k(3)} examples={examples} play={play} canHear={sound.mode === 'audio'} onNext={() => next()} /> },
+    { s: 4, el: <DayPage k={k(4)} minutes={settings.minutes} part={0} /> },
+    { s: 4, el: <DayPage k={k(4)} minutes={settings.minutes} part={1} /> },
+  ];
+  const last = pages.length - 1;
+  const at = Math.min(page, last);
+  const here = pages[at];
+  const next = () => (at < last ? setPage(at + 1) : finish());
+  const back = () => at > 0 && setPage(at - 1);
 
-  // a new page starts at the top; leaving one stops its sound (before the next page's own plays)
+  // leaving a page stops its sound (before the next page's own plays)
   useEffect(() => {
-    window.scrollTo({ top: 0 });
     setPlaying(null);
     return () => sound.stop();
   }, [page, sound]);
@@ -72,32 +90,30 @@ export default function Primer() {
       return true;
     }
     // the ear check uses Enter for its own next round
-    if (a.type === 'confirm' && page !== EAR) {
+    if (a.type === 'confirm' && !here.ear) {
       next();
       return true;
     }
   });
 
-  const k = `How Thai works · ${page + 1} of ${PAGES.length}`;
-  const pages = [
-    <TonesPage key="tones" k={k} examples={examples} pair={pair} play={play} playing={playing} />,
-    <RomanPage key="roman" k={k} examples={examples} roman={roman} play={play} />,
-    <PolitePage key="polite" k={k} polite={polite} identity={settings.identity} hello={content.item('hello')} play={play} playing={playing} />,
-    <EarPage key="ear" k={k} examples={examples} play={play} canHear={sound.mode === 'audio'} onNext={next} />,
-    <DayPage key="day" k={k} minutes={settings.minutes} />,
-  ];
-
-  // a first run: the fifth step of set-up, filling as the pages go; opened again: one segment a page
+  // a first run: the fifth step of set-up, filling as the pages go; opened again: one segment a section, filling as its pages go
   const split = device !== 'phone';
+  const inSection = pages.filter((p) => p.s === here.s);
+  const sectionPart = (inSection.indexOf(here) + 1) / inSection.length;
   return (
     <StepShell
       step={firstRun ? 'Step 5 of 5' : null}
-      rail={firstRun ? { n: 5, at: 4, part: (page + 1) / PAGES.length, label: `Step 5 of 5, page ${page + 1} of ${PAGES.length}` } : { n: PAGES.length, at: page + 1, plain: true, label: `Page ${page + 1} of ${PAGES.length}` }}
+      page={at}
+      rail={
+        firstRun
+          ? { n: 5, at: 4, part: (at + 1) / pages.length, label: `Step 5 of 5, page ${at + 1} of ${pages.length}` }
+          : { n: SECTIONS.length, at: here.s, part: sectionPart, label: `Section ${here.s + 1} of ${SECTIONS.length}, page ${at + 1} of ${pages.length}` }
+      }
       art={
         split ? (
           <Apparition who="pim" mode={reducedMotion ? 'still' : 'idle'} colour="#E8E8E8" style={{ position: 'absolute', inset: 0 }} label="Pim, your guide" />
         ) : (
-          <ToneLines on={page === 0 ? 2 : undefined} />
+          <ToneLines on={at === 0 ? 2 : undefined} />
         )
       }
       artCaption={
@@ -113,22 +129,21 @@ export default function Primer() {
           ) : (
             <button type="button" className="pill text" onClick={() => goBack('/')}>Close</button>
           )}
-          {device !== 'desktop' && !firstRun && <FullscreenButton />}
         </>
       }
       foot={
         <>
           <div className="steps-btns">
-            <button type="button" className="pill big" onClick={back} disabled={page === 0}>Back</button>
+            <button type="button" className="pill big" onClick={back} disabled={at === 0}>Back</button>
             <button type="button" className="pill solid big" onClick={next}>
-              {page < PAGES.length - 1 ? 'Next' : firstRun ? 'Start day 1' : 'Done'}
+              {at < last ? 'Next' : firstRun ? 'Start day 1' : 'Done'}
             </button>
           </div>
           {device === 'desktop' && <KeyHints hints={[['→', 'Next'], ['←', 'Back'], ['1–5', 'Hear a word'], ['Space', 'Hear it again']]} />}
         </>
       }
     >
-      <div key={page} className="stack fade-in primer-page">{pages[page]}</div>
+      <div key={at} className="stack fade-in primer-page">{here.el}</div>
     </StepShell>
   );
 }
@@ -171,7 +186,24 @@ function WordRow({ item, tone, note, play, playing }: { item: Item | undefined; 
   );
 }
 
-function TonesPage({ k, examples, pair, play, playing }: { k: string; examples: Partial<Record<Tone, Item>>; pair: [Item, Item] | null; play: Play; playing: Playing }) {
+function chunk<T>(xs: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
+  return out;
+}
+
+function TonesIntro({ k }: { k: string }) {
+  return (
+    <>
+      <PageHead k={k} title="Five tones." />
+      <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
+        Thai is a tonal language: the pitch a syllable is said at is part of the word, like a vowel. One sound said at five different pitches is five different words.
+      </p>
+    </>
+  );
+}
+
+function TonesList({ k, examples, play, playing }: { k: string; examples: Partial<Record<Tone, Item>>; play: Play; playing: Playing }) {
   useKeys((a) => {
     if (a.type === 'rate' && a.n <= 5) {
       const it = examples[TONES[a.n - 1]];
@@ -182,25 +214,29 @@ function TonesPage({ k, examples, pair, play, playing }: { k: string; examples: 
   return (
     <>
       <PageHead k={k} title="Five tones." />
-      <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
-        Thai is a tonal language: the pitch a syllable is said at is part of the word, like a vowel. One sound said at five different pitches is five different words. Tap each one and listen for the shape of the line.
-      </p>
+      <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>Tap each one and listen for the shape of the line.</p>
       <div className="primer-list">
         {TONES.map((t) => (
           <WordRow key={t} item={examples[t]} tone={t} play={play} playing={playing} />
         ))}
       </div>
-      {pair && (
-        <div className="stack gap-2">
-          <Label>Same sound, different tone, different word</Label>
-          <div className="primer-list">
-            {pair.map((it) => (
-              <WordRow key={it.id} item={it} tone={it.tones[0]} play={play} playing={playing} />
-            ))}
-          </div>
-          <p className="small" style={{ margin: 0 }}>Get the tone wrong and you have said a different word. The shape of the line is what to listen for.</p>
+    </>
+  );
+}
+
+function TonesPair({ k, pair, play, playing }: { k: string; pair: [Item, Item]; play: Play; playing: Playing }) {
+  return (
+    <>
+      <PageHead k={k} title="Five tones." />
+      <div className="stack gap-2">
+        <Label>Same sound, different tone, different word</Label>
+        <div className="primer-list">
+          {pair.map((it) => (
+            <WordRow key={it.id} item={it} tone={it.tones[0]} play={play} playing={playing} />
+          ))}
         </div>
-      )}
+      </div>
+      <p className="small" style={{ margin: 0 }}>Get the tone wrong and you have said a different word. The shape of the line is what to listen for.</p>
     </>
   );
 }
@@ -218,7 +254,7 @@ const POINTS: { id: RomanPointId; title: string; body: string }[] = [
   { id: 'final', title: 'A final p, t or k is cut short', body: 'The mouth closes on it and no air comes out. It sounds swallowed; that is right.' },
 ];
 
-function RomanPage({ k, examples, roman, play }: { k: string; examples: Partial<Record<Tone, Item>>; roman: Record<RomanPointId, Item | null>; play: Play }) {
+function RomanMarks({ k, examples, play }: { k: string; examples: Partial<Record<Tone, Item>>; play: Play }) {
   return (
     <>
       <PageHead k={k} title="Reading the romanisation" />
@@ -240,8 +276,16 @@ function RomanPage({ k, examples, roman, play }: { k: string; examples: Partial<
           })}
         </div>
       </div>
+    </>
+  );
+}
+
+function RomanPoints({ k, points, roman, play }: { k: string; points: typeof POINTS; roman: Record<RomanPointId, Item | null>; play: Play }) {
+  return (
+    <>
+      <PageHead k={k} title="Reading the romanisation" />
       <div className="primer-list">
-        {POINTS.map((p) => {
+        {points.map((p) => {
           const it = roman[p.id];
           return (
             <div key={p.id} className="primer-point">
@@ -282,10 +326,8 @@ function FormRows({ forms, play, playing }: { forms: SpeakerForms; play: Play; p
   );
 }
 
-function PolitePage({ k, polite, identity, hello, play, playing }: { k: string; playing: Playing; polite: Record<Identity, SpeakerForms>; identity: Identity; hello: Item | undefined; play: Play }) {
+function PoliteSay({ k, polite, identity, hello, play, playing }: { k: string; playing: Playing; polite: Record<Identity, SpeakerForms>; identity: Identity; hello: Item | undefined; play: Play }) {
   const { sound } = useApp();
-  const other: Identity = identity === 'm' ? 'f' : 'm';
-  const who = (id: Identity) => (id === 'm' ? 'men' : 'women');
   const said = hello ? sayForm(hello, identity) : null;
   const hearHello = () => hello && void sound.play({ ...sayTarget(hello, identity), voice: identity === 'm' ? 'm1' : 'f1' });
   return (
@@ -305,6 +347,16 @@ function PolitePage({ k, polite, identity, hello, play, playing }: { k: string; 
           </button>
         )}
       </div>
+    </>
+  );
+}
+
+function PoliteHear({ k, polite, identity, play, playing }: { k: string; playing: Playing; polite: Record<Identity, SpeakerForms>; identity: Identity; play: Play }) {
+  const other: Identity = identity === 'm' ? 'f' : 'm';
+  const who = (id: Identity) => (id === 'm' ? 'men' : 'women');
+  return (
+    <>
+      <PageHead k={k} title="Polite endings and “I”" />
       <div className="stack gap-2">
         <Label>You will hear from {who(other)}</Label>
         <FormRows forms={polite[other]} play={play} playing={playing} />
@@ -416,36 +468,34 @@ function EarPage({ k, examples, play, canHear, onNext }: { k: string; examples: 
   );
 }
 
-function DayPage({ k, minutes }: { k: string; minutes: number }) {
+const DAY: { title: string; body: string }[] = [
+  { title: 'New words', body: 'Meet the day’s words and letters, with their sound and a memory hook.' },
+  { title: 'Practise', body: 'The tone lab for your ear, and the sentence builder for word order.' },
+  { title: 'A real conversation on the street', body: 'Use the words with one of the eight people on the street.' },
+  { title: 'Writing', body: 'A few letters a day, stroke by stroke, so the script stops being a wall.' },
+  { title: 'Review', body: 'Review brings back what you are about to forget, just before you forget it. It is what makes the words stay, so it comes every day.' },
+];
+
+/** The day in two pages: the first three steps, then writing and review. */
+function DayPage({ k, minutes, part }: { k: string; minutes: number; part: 0 | 1 }) {
+  const steps = part === 0 ? DAY.slice(0, 3) : DAY.slice(3);
   return (
     <>
       <PageHead k={k} title="How a day works" />
-      <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
-        About {minutes} minutes, in this order. Today shows the next step with one button; everything else stays open below it.
-      </p>
-      <ol className="primer-day">
-        <li>
-          <b>New words</b>
-          <span>Meet the day’s words and letters, with their sound and a memory hook.</span>
-        </li>
-        <li>
-          <b>Practise</b>
-          <span>The tone lab for your ear, and the sentence builder for word order.</span>
-        </li>
-        <li>
-          <b>A real conversation on the street</b>
-          <span>Use the words with one of the eight people on the street.</span>
-        </li>
-        <li>
-          <b>Writing</b>
-          <span>A few letters a day, stroke by stroke, so the script stops being a wall.</span>
-        </li>
-        <li>
-          <b>Review</b>
-          <span>Review brings back what you are about to forget, just before you forget it. It is what makes the words stay, so it comes every day.</span>
-        </li>
+      {part === 0 && (
+        <p className="body" style={{ margin: 0, maxWidth: '52ch' }}>
+          About {minutes} minutes, in this order. Today shows the next step with one button; everything else stays open below it.
+        </p>
+      )}
+      <ol className="primer-day" start={part === 0 ? 1 : 4}>
+        {steps.map((d) => (
+          <li key={d.title}>
+            <b>{d.title}</b>
+            <span>{d.body}</span>
+          </li>
+        ))}
       </ol>
-      <p className="small" style={{ margin: 0 }}>On day 1 the words come first and review last, because there is nothing to review yet.</p>
+      {part === 1 && <p className="small" style={{ margin: 0 }}>On day 1 the words come first and review last, because there is nothing to review yet.</p>}
     </>
   );
 }

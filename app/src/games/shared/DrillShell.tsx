@@ -10,7 +10,7 @@ import type { Answer } from '../../engine/engine';
 import type { GameItem } from '../../engine/engine';
 import type { DrillId } from '../../path/pathway';
 import { useKeys } from '../../input/keys';
-import { Dots, KeyHints, Label, Note } from '../../ui/kit';
+import { Dots, FullscreenButton, KeyHints, Label, Note } from '../../ui/kit';
 import { FitText } from '../../ui/FitText';
 import { Link } from '../../app/router';
 import { HitBurstLayer, type HitBurstHandle } from '../../anim';
@@ -181,6 +181,7 @@ export function DrillShell(p: DrillShellProps) {
         {p.title} · {p.tag}
       </div>
       <div className="right">
+        {device !== 'desktop' && <FullscreenButton />}
         {phase === 'play' ? (
           <button className="pill small" style={{ minWidth: 96 }} onClick={() => setPaused((x) => !x)}>
             {paused ? 'Resume' : 'Pause'}
