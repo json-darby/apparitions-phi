@@ -80,8 +80,8 @@ export function StepShell({
   );
 }
 
-/** How far a page may close up to fit the screen: 0 as designed, then spacing, boxes, the art, and last the type. */
-const FIT_LEVELS = 4;
+/** How far a page may close up to fit the screen: 0 as designed, then spacing, boxes, the art, the type, and last a compact frame for the smallest phones. */
+const FIT_LEVELS = 5;
 
 /**
  * How far a column of parts runs past its box, from layout heights alone: the
