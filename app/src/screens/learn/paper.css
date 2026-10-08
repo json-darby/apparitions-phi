@@ -1,0 +1,14 @@
+/* Paper practice: the sheet's own rules over writing.css. Printed guides stay as light as writing.css has them. */
+
+/* a name breaks between its words, never at a hyphen */
+.sheet-word { white-space: nowrap; }
+
+@media screen {
+  /* the guides are small on screen: darker, fuller dots than on paper */
+  .sheet-paper .sheet-dotted { stroke: #555; stroke-width: 3.4; stroke-dasharray: 0.1 4.6; }
+  .sheet-paper .sheet-outline { stroke: #7a7a7a; }
+
+  /* phones: the name sits on its own line over the row, so the boxes get the width */
+  .device-phone .sheet-row { grid-template-columns: repeat(var(--cells, 7), minmax(0, 1fr)); gap: 3px; margin-bottom: 8px; }
+  .device-phone .sheet-label { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; gap: 0 8px; }
+}

@@ -99,7 +99,7 @@ export default function InkRun() {
       }
       controls={{
         touch: 'Write on the pad with a finger or pen.',
-        keys: [['1 to 4', 'Choose a letter'], ['Space', 'Hear it again'], ['Esc', 'Pause']],
+        keys: [['1 to 4', 'choose a letter'], ['Space', 'hear again'], ['Esc', 'pause']],
       }}
       request={() => ({
         skills: ['read', 'hear', 'write'],

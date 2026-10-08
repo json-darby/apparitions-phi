@@ -128,7 +128,7 @@ export function useStopwatch(key: unknown): () => number {
 export function NotReady({ chapter, onParts }: { chapter: string; onParts?: () => void }) {
   return (
     <Screen top={<TopBar mid={chapter} parent="/street" />} narrow>
-      <Label>{chapter}</Label>
+      <Label className="lead-label">{chapter}</Label>
       <h1 className="h-l" style={{ marginTop: 10 }}>This part is not ready yet</h1>
       <p className="body" style={{ maxWidth: '52ch' }}>
         Its conversation is not in this version of the course. Nothing is lost: your progress is kept, and the part opens when a course that has it is loaded.

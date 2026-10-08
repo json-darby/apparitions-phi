@@ -115,18 +115,25 @@ function ReviewRun({ free }: { free: boolean }) {
   if (!entry || !row) {
     const now = Date.now();
     const waiting = retestTimes.filter((t) => t > now).sort((a, b) => a - b);
+    // a third button only when there is one to offer: two fill the row, as on the other learn screens
+    const middle =
+      free && queue.length ? (
+        <button className="pill" type="button" onClick={() => { setQueue(build()); setAt(0); setAnswered(0); }}>More practice</button>
+      ) : engine.introducedRefs().size > 0 && !free ? (
+        <Link to="/review?free=1" className="pill" style={{ textDecoration: 'none' }}>Free practice</Link>
+      ) : null;
     return (
       <Screen top={<TopBar mid={free ? 'Practice' : 'Review'} parent="/" />} narrow>
         <div className="prompt">
           <Label>{free ? 'Free practice' : 'Review'}</Label>
           <h1 className="h-l" style={{ marginTop: 12 }}>{queue.length ? (free ? 'Practice done.' : 'Clear for now.') : free ? 'Nothing met yet.' : 'Nothing due.'}</h1>
-          <p className="body" style={{ maxWidth: '48ch' }}>
+          <p className="body">
             {queue.length
               ? `${answered} answer${answered === 1 ? '' : 's'} logged.`
               : 'Meet today’s new items first; they come straight back here for a first look.'}
           </p>
           {!free && engine.introducedRefs().size > 0 && (
-            <p className="body" style={{ maxWidth: '48ch' }}>
+            <p className="body">
               Want more? Free practice runs your weakest met items now. Early answers still go to the schedule, which allows for them.
             </p>
           )}
@@ -138,15 +145,9 @@ function ReviewRun({ free }: { free: boolean }) {
           )}
         </div>
         <div className="learn-foot">
-          <div className="btn-row three">
+          <div className={`btn-row ${middle ? 'three' : ''}`}>
             {queue.length ? <Link to="/tone-pairs" className="pill" style={{ textDecoration: 'none' }}>Tone lab</Link> : <Link to="/new" className="pill" style={{ textDecoration: 'none' }}>New items</Link>}
-            {free && queue.length ? (
-              <button className="pill" type="button" onClick={() => { setQueue(build()); setAt(0); setAnswered(0); }}>More practice</button>
-            ) : engine.introducedRefs().size > 0 && !free ? (
-              <Link to="/review?free=1" className="pill" style={{ textDecoration: 'none' }}>Free practice</Link>
-            ) : (
-              <span />
-            )}
+            {middle}
             {free ? <Link to="/" className="pill solid" style={{ textDecoration: 'none' }}>Today</Link> : <ContinueLink current="review" />}
           </div>
         </div>

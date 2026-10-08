@@ -93,7 +93,7 @@ export default function SchoolCustom() {
     const answerOf = new Map(lines.map((l) => [l.id, l.en]));
     return (
       <Screen top={top} narrow>
-        <Label>Mine · review before saving</Label>
+        <Label className="sn-lead">Mine · review before saving</Label>
         <input
           className="sn-title-input h-l"
           value={r.title}
@@ -201,7 +201,7 @@ export default function SchoolCustom() {
   const left = health?.custom?.requestsLeftToday;
   return (
     <Screen top={top} narrow>
-      <Label>Mine · a lesson for your situation</Label>
+      <Label className="sn-lead">Mine · a lesson for your situation</Label>
       <h1 className="h-l" style={{ marginTop: 10 }}>Build a lesson</h1>
       <p className="body" style={{ maxWidth: '56ch', margin: '14px 0 0' }}>
         Describe a situation and the server writes 8 to 12 lines in your register, the replies you are likely to hear, and a frame or two. It prefers words you already know. You check every line before anything is saved.
@@ -231,12 +231,13 @@ export default function SchoolCustom() {
             {busy ? 'Writing…' : 'Write the lesson'}
           </button>
           <Link to="/school" className="pill" style={{ textDecoration: 'none' }}>Map</Link>
+          {/* beside the buttons where there is room, so the form fits a laptop screen */}
+          <p className="small sn-actions-note">
+            {!online
+              ? health === undefined ? 'Checking the server…' : 'Custom lessons are written on the server, so they need a connection (Settings → Talk live). Saved ones work offline.'
+              : left != null ? `${left} left today${health?.mock ? ' · practice server, no cost' : ''}.` : ''}
+          </p>
         </div>
-        <p className="small" style={{ margin: 0 }}>
-          {!online
-            ? health === undefined ? 'Checking the server…' : 'Custom lessons are written on the server, so they need a connection (Settings → Talk live). Saved ones work offline.'
-            : left != null ? `${left} left today${health?.mock ? ' · practice server, no cost' : ''}.` : ''}
-        </p>
       </form>
     </Screen>
   );

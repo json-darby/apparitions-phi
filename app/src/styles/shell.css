@@ -24,6 +24,21 @@
 .rail .rail-section { margin: 18px 10px 6px; }
 .rail .rail-foot { padding: 10px 0 0; }
 .rail .rail-foot { margin-top: auto; }
+/* a shorter window: the rail closes up so every item shows, Settings and full screen included,
+   and if it still runs over it scrolls without a bar */
+.rail { scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+@media (max-height: 900px) {
+  .rail { padding-top: 16px; padding-bottom: 14px; gap: 2px; }
+  .rail .logo { margin-bottom: 16px; }
+  .rail a { padding-top: 8px; padding-bottom: 8px; }
+  .rail .rail-section { margin-top: 12px; margin-bottom: 4px; }
+}
+@media (max-height: 720px) {
+  .rail a { padding-top: 6px; padding-bottom: 6px; font-size: 14px; }
+  .rail .rail-section { margin-top: 8px; margin-bottom: 2px; }
+  .rail .logo { margin-bottom: 10px; }
+}
 
 .logo { font-weight: 800; font-size: 20px; letter-spacing: -0.04em; text-decoration: none; white-space: nowrap; }
 a.logo { display: inline-flex; align-items: center; min-height: 44px; }
@@ -69,7 +84,9 @@ a.logo { display: inline-flex; align-items: center; min-height: 44px; }
 .device-desktop .screen:not(.full) .stage { padding-left: max(40px, calc((100% - 760px) / 2)); padding-right: max(40px, calc((100% - 760px) / 2)); }
 .device-desktop .screen-body.has-panel > .panel { padding-left: 28px; padding-right: 28px; }
 .device-tablet .screen-body.has-panel > .panel { padding-left: 24px; padding-right: 24px; }
-.device-phone .panel { border-top: 1px solid var(--rule); padding-top: var(--s4); }
+/* a phone: the panel follows the page, its rule inset to the gutter like every other rule */
+.device-phone .panel { position: relative; padding-top: var(--s4); }
+.device-phone .panel::before { content: ''; position: absolute; top: 0; left: var(--gutter); right: var(--gutter); border-top: 1px solid var(--rule); }
 
 .keyhints { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mut); }
 .keyhints span { display: inline-flex; align-items: center; gap: 6px; }
@@ -257,7 +274,7 @@ a.logo { display: inline-flex; align-items: center; min-height: 44px; }
 .settings .swatch { width: 32px; height: 32px; position: relative; }
 .settings .swatch::after { content: ''; position: absolute; inset: -6px -4px; }
 .settings .swatch i { width: 24px; height: 24px; }
-.line-input { width: 170px; max-width: 100%; height: 44px; padding: 0 12px; border-color: var(--rule); font-size: 15px; text-align: right; }
+.line-input { width: 170px; max-width: 100%; height: 44px; padding: 0 12px; border-color: var(--rule); font-size: 15px; }
 .date-value {
   position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 2px;
   font-size: 15px; color: var(--fg-2); cursor: pointer; font-variant-numeric: tabular-nums;

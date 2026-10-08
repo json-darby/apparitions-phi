@@ -5,18 +5,19 @@
 //
 // Deep link: /writing/paper?letters=l-gor,l-jor&step=photo
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../app/context';
 import { useDevice } from '../../app/device';
 import { useRoute } from '../../app/router';
 import type { Letter, StrokePath } from '../../content/types';
 import { SIX_LABELS, Six } from '../../engine/grade';
 import { Label, Screen, Seg, TopBar } from '../../ui/kit';
-import { GLYPH, glyphTextProps } from '../../writing/glyph';
+import { GLYPH, GLYPH_FONT, glyphTextProps, warmGlyphFont } from '../../writing/glyph';
 import { strokePoints } from '../../writing/geometry';
 import { letterRef, shuffle, useWritingLetters } from '../../writing/LetterBits';
 import { getStrokes } from '../../writing/strokes';
 import '../../writing/writing.css';
+import './paper.css';
 
 const MAX_LETTERS = 8;
 
@@ -98,12 +99,57 @@ export default function PaperPractice() {
 
 // ---------- the sheet ----------
 
-function CellLines() {
+// A cell shows the stroke box with room around it: Thai marks reach above the
+// box (โ to about y -10) and tails below it (ฐ to about y 103). A letter whose
+// ink reaches further still (เ-อะ is wider than the box) gets a wider square
+// view, so its whole glyph shows, a little smaller.
+type View = { x: number; y: number; size: number };
+const CELL_BOX: View = { x: -7, y: -11, size: 114 };
+const INK_ROOM = 6;
+
+let inkCtx: CanvasRenderingContext2D | null | undefined;
+
+/** The square view a letter's cells share: the stroke box with room, grown to hold the glyph's ink once the font is in. */
+function cellView(char: string | undefined): View {
+  if (!char || typeof document === 'undefined' || !document.fonts?.check(GLYPH_FONT, char)) return CELL_BOX;
+  inkCtx ??= document.createElement('canvas').getContext('2d');
+  if (!inkCtx) return CELL_BOX;
+  inkCtx.font = GLYPH_FONT;
+  inkCtx.textAlign = 'center';
+  const m = inkCtx.measureText(char);
+  const x0 = Math.min(CELL_BOX.x, GLYPH.x - m.actualBoundingBoxLeft - INK_ROOM);
+  const x1 = Math.max(CELL_BOX.x + CELL_BOX.size, GLYPH.x + m.actualBoundingBoxRight + INK_ROOM);
+  const y0 = Math.min(CELL_BOX.y, GLYPH.baseline - m.actualBoundingBoxAscent - INK_ROOM);
+  const y1 = Math.max(CELL_BOX.y + CELL_BOX.size, GLYPH.baseline + m.actualBoundingBoxDescent + INK_ROOM);
+  const size = Math.max(x1 - x0, y1 - y0);
+  return { x: (x0 + x1 - size) / 2, y: (y0 + y1 - size) / 2, size };
+}
+
+function CellLines({ view }: { view: View }) {
+  const x1 = view.x;
+  const x2 = view.x + view.size;
   return (
     <>
-      <line x1="0" x2="100" y1={GLYPH.baseline} y2={GLYPH.baseline} className="sheet-line" />
-      <line x1="0" x2="100" y1={GLYPH.xHeight} y2={GLYPH.xHeight} className="sheet-line dash" />
+      <line x1={x1} x2={x2} y1={GLYPH.baseline} y2={GLYPH.baseline} className="sheet-line" />
+      <line x1={x1} x2={x2} y1={GLYPH.xHeight} y2={GLYPH.xHeight} className="sheet-line dash" />
     </>
+  );
+}
+
+/** A letter's name and key word; a name breaks only between its words, never at a hyphen. */
+function SheetLabel({ letter }: { letter: Letter }) {
+  return (
+    <div className="sheet-label">
+      <b>
+        {letter.name.split(' ').map((w, i) => (
+          <Fragment key={i}>
+            {i > 0 && ' '}
+            <span className="sheet-word">{w}</span>
+          </Fragment>
+        ))}
+      </b>
+      <span>{letter.keyword}</span>
+    </div>
   );
 }
 
@@ -125,11 +171,11 @@ function StartDot({ strokes }: { strokes: StrokePath[] | null }) {
   );
 }
 
-function Cell({ kind, letter, strokes }: { kind: 'model' | 'dotted' | 'blank'; letter?: Letter; strokes?: StrokePath[] | null }) {
+function Cell({ kind, letter, strokes, view = CELL_BOX }: { kind: 'model' | 'dotted' | 'blank'; letter?: Letter; strokes?: StrokePath[] | null; view?: View }) {
   return (
     <div className="sheet-cell">
-      <svg viewBox="0 0 100 100" aria-hidden>
-        <CellLines />
+      <svg viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`} aria-hidden>
+        <CellLines view={view} />
         {kind === 'model' && letter && (
           <>
             <text {...glyphTextProps()} className="sheet-model" lang="th">{letter.char}</text>
@@ -158,31 +204,35 @@ function Sheet({ letters, traces, strokesFor }: { letters: Letter[]; traces: num
   const blanks = Math.max(1, 6 - traces) + 1;
   const cells = 1 + traces + blanks;
   const memory = useMemo(() => shuffle(letters), [letters]);
+  // the views are measured from the font: measure again once it has loaded
+  const [, setFontIn] = useState(0);
+  useEffect(() => {
+    let live = true;
+    void warmGlyphFont(letters.map((l) => l.char).join('')).then(() => live && setFontIn((n) => n + 1));
+    return () => {
+      live = false;
+    };
+  }, [letters]);
   return (
     <div className="sheet-paper" style={{ ['--cells' as string]: cells }}>
       <h2>APPARITIONS: PHI · letter practice</h2>
       <div className="sheet-sub">Start at the numbered dot. Keep the body of each letter between the lines.</div>
       {letters.map((l) => {
         const strokes = strokesFor(l);
+        const view = cellView(l.char);
         return (
           <div className="sheet-row" key={l.id}>
-            <div className="sheet-label">
-              <b>{l.name}</b>
-              <span>{l.keyword}</span>
-            </div>
-            <Cell kind="model" letter={l} strokes={strokes} />
-            {Array.from({ length: traces }, (_, i) => <Cell key={`d${i}`} kind="dotted" letter={l} strokes={strokes} />)}
-            {Array.from({ length: blanks }, (_, i) => <Cell key={`b${i}`} kind="blank" />)}
+            <SheetLabel letter={l} />
+            <Cell kind="model" letter={l} strokes={strokes} view={view} />
+            {Array.from({ length: traces }, (_, i) => <Cell key={`d${i}`} kind="dotted" letter={l} strokes={strokes} view={view} />)}
+            {Array.from({ length: blanks }, (_, i) => <Cell key={`b${i}`} kind="blank" view={view} />)}
           </div>
         );
       })}
       <div className="sheet-section">From memory: write each letter from its name</div>
       {memory.map((l) => (
         <div className="sheet-row" key={`m${l.id}`}>
-          <div className="sheet-label">
-            <b>{l.name}</b>
-            <span>{l.keyword}</span>
-          </div>
+          <SheetLabel letter={l} />
           {Array.from({ length: 3 }, (_, i) => <Cell key={i} kind="blank" />)}
         </div>
       ))}

@@ -44,7 +44,7 @@ export function NoFile() {
 export function SchoolTitle({ sub }: { sub?: string }) {
   return (
     <div>
-      <Label>{sub ?? `Spoken lessons · ${TUTOR.name}`}</Label>
+      <Label className="sn-lead">{sub ?? `Spoken lessons · ${TUTOR.name}`}</Label>
       <div className="sn-name">
         <h1 className="h-l">{SCHOOL.name}</h1>
         <div className="thai-m" lang="th">{SCHOOL.thai}</div>

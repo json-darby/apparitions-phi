@@ -187,7 +187,7 @@ export function DrillShell(p: DrillShellProps) {
             {paused ? 'Resume' : 'Pause'}
           </button>
         ) : (
-          <button className="pill small" style={{ minWidth: 96 }} onClick={() => back('/')}>Back</button>
+          <button className="pill small" onClick={() => back('/')}>Back</button>
         )}
       </div>
     </header>
@@ -208,9 +208,9 @@ export function DrillShell(p: DrillShellProps) {
               <button key={t} className="row" disabled={t > record.unlocked} onClick={() => setTier(t)} aria-pressed={tier === t}>
                 <span className="hrow">
                   <span className={`radio ${tier === t ? 'on' : ''}`}><i /></span>
-                  {TIER_INFO[t].name} <span className="small">{p.tierNotes?.[t] ?? TIER_INFO[t].note}</span>
+                  <span style={{ whiteSpace: 'nowrap' }}>{TIER_INFO[t].name}</span> <span className="small">{p.tierNotes?.[t] ?? TIER_INFO[t].note}</span>
                 </span>
-                <span className="row-right">{t > record.unlocked ? 'Locked' : record.best[t] ? `Best ${record.best[t]}` : ''}</span>
+                <span className="row-right" style={{ flex: 'none', whiteSpace: 'nowrap' }}>{t > record.unlocked ? 'Locked' : record.best[t] ? `Best ${record.best[t]}` : ''}</span>
               </button>
             ))}
             <p className="small" style={{ margin: 0 }}>The next tier opens at 85% over 30 answers. Speed adapts to keep you near 80 to 85%.</p>
@@ -219,7 +219,10 @@ export function DrillShell(p: DrillShellProps) {
             <button className="pill solid big wide" onClick={start}>Play</button>
           ) : (
             <Note>
-              This drill uses only items you have already met. Meet a few more first. <Link to="/new">New items</Link>
+              This drill uses only items you have already met. Meet a few more first.
+              <span style={{ display: 'block', marginTop: 12 }}>
+                <Link to="/new" className="pill small" style={{ textDecoration: 'none' }}>New items</Link>
+              </span>
             </Note>
           )}
         </div>

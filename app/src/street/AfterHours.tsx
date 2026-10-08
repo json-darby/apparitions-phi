@@ -42,7 +42,7 @@ export default function AfterHours() {
   if (part == null)
     return (
       <Screen top={<TopBar mid="After Hours · 18+" parent="/street" />} narrow>
-        <Label>Street chapter · Bar · 18+</Label>
+        <Label className="lead-label">Street chapter · Bar · 18+</Label>
         <h1 className="h-xl" style={{ margin: '10px 0 14px' }}>After Hours</h1>
         <p className="body" style={{ maxWidth: '54ch', marginTop: 0 }}>
           Late at the bar. Read the room. A no is an answer, and taking it well is the best thing you can do here.

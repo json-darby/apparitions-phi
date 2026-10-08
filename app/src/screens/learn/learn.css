@@ -206,6 +206,12 @@
 /* new items: the same boxes on every card (see NewItems.tsx) */
 :root { --np-rest-h: 242px; }
 .device-phone .np-art { height: 164px; }
+/* the face and the type give way on a short window, so the word, its script and the four voices
+   sit above the docked buttons on first view; from about 830px tall (desktop) they are full size */
+.device-desktop .np-art { height: clamp(120px, calc(70.6dvh - 327px), 260px); }
+.device-desktop .np-face { --h-l: clamp(36px, calc(10.6dvh - 31px), 56px); --t-thai-xl: clamp(60px, calc(11.8dvh - 8.5px), 88px); }
+/* a portrait tablet has the memory hook on the card: a slightly shorter face keeps it above the buttons */
+.device-tablet .np-art { height: clamp(180px, calc(100dvh - 890px), 240px); }
 .np-face { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .np-script { height: calc(var(--t-thai-xl) * 1.15 + 21px); display: flex; flex-direction: column; min-width: 0; }
 .np-rest { height: var(--np-rest-h); display: flex; flex-direction: column; gap: 12px; min-width: 0; }

@@ -55,24 +55,30 @@ export default function Cast() {
           return (
             <article key={c.id} className="cast-card">
               <div className="art" style={{ position: 'relative' }}>
-                {c.place && <RepStars rep={rep} name={c.name} colour={colour} style={{ top: '10%', right: '16%' }} />}
+                {c.place && <RepStars rep={rep} name={c.name} colour={colour} style={{ top: 10, right: 10 }} />}
                 <Apparition who={c.id} mode={reducedMotion ? 'still' : 'idle'} colour={colour} clarity={c.id === 'pim' ? 0.92 : clarityFor(rep)} label={`${c.name}, ${met ? 'drawn in light' : 'not yet met'}`} />
               </div>
               <div className="hrow between" style={{ alignItems: 'baseline' }}>
                 <b style={{ fontSize: 20, letterSpacing: '-0.02em' }}>{c.name}</b>
                 {place && <span className="small" lang="th" style={{ color: colour }}>{place.thaiSign}</span>}
               </div>
-              <div className="small">{c.role} · {c.age}</div>
+              <div className="small">{c.role} <span className="nw">· {c.age}</span></div>
               {c.place ? (
                 <>
                   <div className="hrow between small">
                     <span>Reputation</span>
-                    <span className="num">{Math.max(0, rep) / 2} of 5 stars</span>
+                    <span className="num nw">{Math.max(0, rep) / 2} of 5</span>
                   </div>
-                  <div className="small">{theirs.length ? `${done} of ${theirs.length} tasks done` : 'No tasks yet'}{met ? '' : ' · not met'}</div>
+                  <div className="hrow between small">
+                    <span>Tasks</span>
+                    <span className="num nw">{theirs.length ? `${done} of ${theirs.length}` : 'None yet'}</span>
+                  </div>
+                  {!met && <div className="small mut">Not met yet</div>}
                 </>
               ) : (
-                <div className="small">Your guide. Narrates; never on the street.</div>
+                <div className="small cast-note">
+                  {c.id === 'pim' ? 'Your guide. Narrates; never on the street.' : 'Has a shop on the street. It opens later in the course.'}
+                </div>
               )}
             </article>
           );

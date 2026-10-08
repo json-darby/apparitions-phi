@@ -63,7 +63,7 @@ function Section({ file, id }: { file: SchoolFile; id: string }) {
 
   return (
     <Screen top={<TopBar mid={SCHOOL.name} parent="/school" />} narrow>
-      <Label>{custom ? `${group?.title ?? 'Mine'} · your lesson${loadCustom(store).find((r) => r.id === section.id)?.adult ? ' · 18+' : ''}` : `${group?.title} · Section ${section.n}${group?.adult ? ' · 18+' : ''}`}</Label>
+      <Label className="sn-lead">{custom ? `${group?.title ?? 'Mine'} · your lesson${loadCustom(store).find((r) => r.id === section.id)?.adult ? ' · 18+' : ''}` : `${group?.title} · Section ${section.n}${group?.adult ? ' · 18+' : ''}`}</Label>
       <h1 className="h-l" style={{ marginTop: 10 }}>{section.title}</h1>
       {section.note && <p className="body" style={{ maxWidth: '52ch', margin: '12px 0 0' }}>{section.note}</p>}
       {custom && (

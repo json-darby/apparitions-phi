@@ -232,7 +232,7 @@ export default function SentenceBuilder() {
         <div className="prompt">
           <Label>Sentence builder</Label>
           <h1 className="h-l" style={{ marginTop: 12 }}>{patternsMet ? 'Nothing to build yet.' : 'No patterns yet.'}</h1>
-          <p className="body" style={{ maxWidth: '46ch' }}>
+          <p className="body">
             {patternsMet
               ? 'The patterns you have met use words still to come. They open here once those words are in.'
               : 'Sentence patterns start once you have met your first pattern. Patterns arrive with the new items.'}

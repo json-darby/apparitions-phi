@@ -15,7 +15,7 @@ import { useDevice } from '../app/device';
 import { Link } from '../app/router';
 import { taskById, type StreetNode } from '../content/street-seed';
 import type { Expression } from '../anim';
-import { Label, Logo, StepRail } from '../ui/kit';
+import { FullscreenButton, Label, Logo, StepRail } from '../ui/kit';
 import { DialogueRun, type ChoiceResult, type Outcome } from './dialogue';
 import { DialoguePanel } from './parts/DialoguePanel';
 import { Face } from './parts/Face';
@@ -128,7 +128,7 @@ export default function DoorToDoor() {
   );
 
   const hud = (
-    <div className="game-hud" style={{ padding: device === 'phone' ? undefined : 0, marginBottom: 12 }}>
+    <div className="game-hud d2d-hud">
       <HudStat label="Score" value={score.toLocaleString()} />
       <HudStat label="Run" value={(ch.runs ?? 0) + (phase === 'end' ? 0 : 1)} align="center" />
       <div className="street-stat" style={{ textAlign: 'right' }}>
@@ -178,9 +178,12 @@ export default function DoorToDoor() {
       <div className="topbar">
         {device !== 'desktop' ? <Logo /> : <span />}
         <div className="mid label fg">Door to Door · Campaign</div>
-        <div className="right"><Link to="/street" className="pill small">Leave</Link></div>
+        <div className="right">
+          {device !== 'desktop' && <FullscreenButton />}
+          <Link to="/street" className="pill small">Leave</Link>
+        </div>
       </div>
-      <div className="stage">
+      <div className={device === 'phone' ? 'stage' : 'stage narrow'}>
         {device === 'phone' ? (
           <>
             {hud}
@@ -192,13 +195,23 @@ export default function DoorToDoor() {
             )}
           </>
         ) : (
-          <div className="d2d">
-            <div>
-              {hud}
-              {map}
+          <>
+            {/* tablet and desktop: named like the other chapters, the score across the top, the route beside what comes next */}
+            {phase !== 'scene' && (
+              <div className="d2d-head">
+                <Label className="lead-label">Street chapter · Campaign</Label>
+                <h1 className="h-l">Door to Door</h1>
+              </div>
+            )}
+            {phase !== 'scene' && hud}
+            <div className={`d2d ${phase === 'scene' ? 'playing' : ''}`}>
+              <div>
+                {phase === 'scene' && hud}
+                {map}
+              </div>
+              <div style={{ minWidth: 0 }}>{right}</div>
             </div>
-            <div style={{ minWidth: 0 }}>{right}</div>
-          </div>
+          </>
         )}
       </div>
       {walk && <SequenceOverlay name="walkaway" caption="Out of lives. The trip ends here, for now." onDone={() => setWalk(false)} />}

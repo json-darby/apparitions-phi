@@ -848,7 +848,7 @@ function Summary({ file, last, onRerun, top, identity }: { file: SchoolFile; las
   };
   return (
     <Screen top={top} narrow>
-      <Label>After the lesson · {last.title}</Label>
+      <Label className="sn-lead">After the lesson · {last.title}</Label>
       <h1 className="h-l" style={{ marginTop: 10 }}>{missed.length ? 'Done.' : got.length ? 'All got.' : 'Ended early.'}</h1>
       {!got.length && !missed.length && <p className="body" style={{ margin: '12px 0 0', maxWidth: '52ch' }}>No line was finished, so nothing changed. Start again from the map whenever you like.</p>}
       <div className="stats" style={{ margin: '20px 0 8px' }}>

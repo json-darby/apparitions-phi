@@ -96,7 +96,7 @@ export default function ToneClimb() {
       howTo="Hear a syllable, then jump to the platform shaped like its tone. A wrong landing crumbles and the tide climbs. If the tide reaches you, a life goes."
       controls={{
         touch: 'Tap a lane or the shape under it.',
-        keys: [['A S D F G', 'Jump to a lane'], ['Space', 'Hear it again'], ['Esc', 'Pause']],
+        keys: [['A S D F G', 'jump to a lane'], ['Space', 'hear again'], ['Esc', 'pause']],
       }}
       request={() => ({
         skills: ['tone', 'hear'],

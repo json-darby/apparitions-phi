@@ -221,7 +221,9 @@ a.row:hover .row-right, button.row:hover:not(:disabled) .row-right { color: var(
 .list-head .small { text-align: right; }
 /* both sides of a row may shrink; the right label wraps under itself, never off screen */
 .row > * { min-width: 0; }
-.row-right { flex: 0 1 auto; max-width: 58%; }
+.row-right { flex: 0 1 auto; max-width: 58%; text-wrap: balance; }
+/* the title keeps its own width first (up to 62%), so a short title never wraps for a long caption */
+.row > :first-child:not(:only-child) { flex: 0 0 auto; max-width: 62%; }
 
 .stack { display: flex; flex-direction: column; }
 .gap-1 { gap: var(--s1); } .gap-2 { gap: var(--s2); } .gap-3 { gap: var(--s3); } .gap-4 { gap: var(--s4); } .gap-6 { gap: var(--s6); } .gap-8 { gap: var(--s8); }
@@ -327,7 +329,7 @@ a.row:hover .row-right, button.row:hover:not(:disabled) .row-right { color: var(
 }
 @keyframes sheetIn { from { transform: translateY(24px); opacity: 0; } }
 
-input[type='text'], input[type='date'], input[type='number'], textarea, select {
+input[type='text'], input[type='date'], input[type='number'], input[type='url'], input[type='password'], input[type='email'], input[type='search'], textarea, select {
   background: transparent; border: 1px solid var(--rule-strong); border-radius: 6px;
   padding: 12px 14px; font-size: 16px; width: 100%;
 }
@@ -349,6 +351,8 @@ textarea { resize: vertical; min-height: 80px; }
 .reduced .toggle::after { transition: none; }
 
 /* compact segmented pills: 36 high inside a 44 frame */
+/* a segmented choice keeps its own width, even in a column that stretches its children */
+.stack > .seg { align-self: flex-start; max-width: 100%; }
 .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius); padding: 3px; gap: 2px; }
 .seg button {
   border: 0; background: none; border-radius: var(--radius); height: 36px; padding: 0 14px;

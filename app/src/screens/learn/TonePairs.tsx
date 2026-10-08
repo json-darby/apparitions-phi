@@ -195,7 +195,7 @@ export default function TonePairs() {
         <div className="prompt">
           <Label>Tone lab</Label>
           <h1 className="h-l" style={{ marginTop: 12 }}>Not enough words yet.</h1>
-          <p className="body" style={{ maxWidth: '46ch' }}>
+          <p className="body">
             The lab only uses words you have met, and it needs {MIN_WORDS} short ones to start. Meet today’s new items first and come back.
           </p>
         </div>

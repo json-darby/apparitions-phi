@@ -2,7 +2,7 @@
 // place, with a range; ahead or behind in days; the cheapest fix; and how the
 // forecast was worked out, in plain words.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../app/context';
 import { personalRetention } from '../engine/calibrate';
 import type { Forecast, Status } from '../engine/forecast';
@@ -162,8 +162,8 @@ export default function Readiness() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="hrow between" style={{ gap: 16 }}>
-      <span className="label">{label}</span>
-      <span style={{ textAlign: 'right' }}>{value}</span>
+      <span className="label" style={{ flex: 'none', whiteSpace: 'nowrap' }}>{label}</span>
+      <span style={{ textAlign: 'right', textWrap: 'balance', minWidth: 0 }}>{value}</span>
     </div>
   );
 }
@@ -184,14 +184,27 @@ function PlaceBar({ now, band, target, colour }: { now: number; band: { p10: num
 function ReadinessChart({ f }: { f: Forecast }) {
   const W = 640;
   const H = 220;
-  const pad = { l: 36, r: 12, t: 12, b: 26 };
+  const ref = useRef<SVGSVGElement>(null);
+  // the chart scales with the screen, its labels do not: k is chart units per screen pixel, so text stays 11 px
+  const [k, setK] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const w = el.getBoundingClientRect().width;
+      if (w) setK(W / w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fs = 11 * k;
+  const pad = { l: 8 + fs * 2, r: 12, t: 12 + fs * 0.4, b: 14 + fs * 1.2 };
   const pts = f.curve;
   const n = pts.length;
   const xs = (i: number) => pad.l + (i / Math.max(1, n - 1)) * (W - pad.l - pad.r);
   const ys = (v: number) => pad.t + (1 - v) * (H - pad.t - pad.b);
   const today = useMemo(() => new Date(), []);
   const [hover, setHover] = useState<number | null>(null);
-  const ref = useRef<SVGSVGElement>(null);
 
   const line = pts.map((p, i) => `${i ? 'L' : 'M'}${xs(i).toFixed(1)},${ys(p.p50).toFixed(1)}`).join('');
   const area = `${pts.map((p, i) => `${i ? 'L' : 'M'}${xs(i).toFixed(1)},${ys(p.p90).toFixed(1)}`).join('')}${[...pts].reverse().map((p, j) => `L${xs(n - 1 - j).toFixed(1)},${ys(p.p10).toFixed(1)}`).join('')}Z`;
@@ -224,18 +237,18 @@ function ReadinessChart({ f }: { f: Forecast }) {
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <g key={v}>
             <line x1={pad.l} x2={W - pad.r} y1={ys(v)} y2={ys(v)} stroke="rgba(255,255,255,.08)" />
-            <text x={pad.l - 6} y={ys(v) + 4} fontSize="10" fill="var(--mut)" textAnchor="end">{Math.round(v * 100)}</text>
+            <text x={pad.l - 6} y={ys(v) + fs * 0.35} fontSize={fs} fill="var(--mut)" textAnchor="end">{Math.round(v * 100)}</text>
           </g>
         ))}
         <path d={area} fill="rgba(242,242,242,.14)" />
         <line x1={pad.l} x2={W - pad.r} y1={ys(f.target)} y2={ys(f.target)} stroke="var(--amber)" strokeDasharray="4 4" strokeWidth="1" />
-        <text x={W - pad.r} y={ys(f.target) - 5} fontSize="10" fill="var(--fg-2)" textAnchor="end">ready</text>
+        <text x={W - pad.r} y={ys(f.target) - fs * 0.45} fontSize={fs} fill="var(--fg-2)" textAnchor="end">ready</text>
         <line x1={tripX} x2={tripX} y1={pad.t} y2={H - pad.b} stroke="var(--fg-2)" strokeWidth="1" />
-        <text x={tripX + 4} y={pad.t + 10} fontSize="10" fill="var(--fg-2)">{f.horizonKind === 'trip' ? 'trip' : 'course end'}</text>
+        <text x={tripX + 4} y={pad.t + fs} fontSize={fs} fill="var(--fg-2)">{f.horizonKind === 'trip' ? 'trip' : 'course end'}</text>
         <path d={line} fill="none" stroke="var(--fg)" strokeWidth="2" strokeLinejoin="round" />
         <circle cx={xs(f.daysLeft - 1)} cy={ys(f.overall.p50)} r="4" fill="var(--fg)" stroke="var(--bg)" strokeWidth="2" />
-        <text x={pad.l} y={H - 8} fontSize="10" fill="var(--mut)">{dateOf(0)}</text>
-        <text x={W - pad.r} y={H - 8} fontSize="10" fill="var(--mut)" textAnchor="end">{dateOf(n - 1)}</text>
+        <text x={pad.l} y={H - fs * 0.5} fontSize={fs} fill="var(--mut)">{dateOf(0)}</text>
+        <text x={W - pad.r} y={H - fs * 0.5} fontSize={fs} fill="var(--mut)" textAnchor="end">{dateOf(n - 1)}</text>
         {hover != null && (
           <g>
             <line x1={xs(hover)} x2={xs(hover)} y1={pad.t} y2={H - pad.b} stroke="var(--fg-2)" strokeWidth="1" />

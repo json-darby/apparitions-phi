@@ -25,6 +25,7 @@ import { handwritingDetail, type Ink, type ScoreDetail } from '../../writing/rec
 import { StrokePlayer } from '../../writing/StrokePlayer';
 import { getStrokes } from '../../writing/strokes';
 import '../../writing/writing.css';
+import './studio.css';
 
 type Mode = 'watch' | 'trace' | 'memory' | 'choose' | 'parts' | 'paper';
 const MODE_LABEL: Record<Mode, string> = {

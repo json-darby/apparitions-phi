@@ -48,7 +48,7 @@ export function SoundSettings() {
       </Line>
       <Line title="Your voice" note={`The voice that models your own speech on the record sheet. Listening still uses all four. Now: ${VOICE_NAME[myVoiceFor(s)]}.`}>
         <span className="hrow" style={{ gap: 6 }}>
-          <select value={s.myVoice} onChange={(e) => set({ myVoice: e.target.value as VoiceId | 'auto' })} aria-label="Your voice" style={{ width: 120 }}>
+          <select value={s.myVoice} onChange={(e) => set({ myVoice: e.target.value as VoiceId | 'auto' })} aria-label="Your voice" style={{ width: 'auto', minWidth: 0, padding: '10px 12px' }}>
             <option value="auto">Auto ({s.identity === 'f' ? 'woman' : 'man'})</option>
             {VOICES.map((v) => (
               <option key={v} value={v}>{VOICE_NAME[v]}</option>

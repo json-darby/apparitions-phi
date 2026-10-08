@@ -146,7 +146,7 @@ export default function Progress() {
             <div key={k} style={{ flex: data.bands[k] / total, background: ['#3a3a3a', 'var(--bad)', 'var(--amber)', 'var(--good)'][i] }} />
           ))}
         </div>
-        <div className="stats" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+        <div className="stats four" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <Stat label="Just met" value={data.bands.new} />
           <Stat label="Weak" value={data.bands.weak} />
           <Stat label="Holding" value={data.bands.ok} />

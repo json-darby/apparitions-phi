@@ -1,0 +1,7 @@
+/* Writing studio: its own rules over writing.css. */
+
+/* desktop and tablet: the player gives way on a short window, so the controls under it and
+   their note show without scrolling (top bar, mode row and letters take about 280px, the
+   controls and note about 130px); tall windows keep the full size */
+.device-desktop .ws-main .ws-player-big,
+.device-tablet .ws-main .ws-player-big { width: min(100%, 480px, max(240px, calc(100dvh - 410px))); }

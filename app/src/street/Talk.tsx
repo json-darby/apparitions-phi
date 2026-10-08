@@ -206,7 +206,7 @@ function TalkEnd({ outcome, name, paid, replay, accuracy, onAgain }: { outcome: 
 export function AdultOff() {
   return (
     <Screen top={<TopBar mid="After Hours" parent="/" />} narrow>
-      <Label>18+ · Off</Label>
+      <Label className="lead-label">18+ · Off</Label>
       <h1 className="h-l" style={{ marginTop: 10 }}>After Hours is off</h1>
       <p className="body" style={{ maxWidth: '52ch' }}>
         This chapter is for adults: bar conversation, a little flirting, saying no and hearing one. It stays non-explicit.

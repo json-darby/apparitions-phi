@@ -61,7 +61,7 @@ export default function MetersRunning() {
     return (
       <div className="screen">
         <div className="topbar">
-          <Logo />
+          {device !== 'desktop' ? <Logo /> : <span />}
           <div className="mid label fg">Meter's Running</div>
           <div className="right">
             {device !== 'desktop' && <FullscreenButton />}
@@ -69,7 +69,7 @@ export default function MetersRunning() {
           </div>
         </div>
         <div className="stage narrow">
-          <Label>Street chapter · Taxi</Label>
+          <Label className="lead-label">Street chapter · Taxi</Label>
           <h1 className="h-l" style={{ margin: '10px 0 12px' }}>Meter's Running</h1>
           <p className="body" style={{ maxWidth: '54ch', marginTop: 0 }}>
             The taxi chapter. Steer by ear while the fare runs. Best {ch.best ?? 0}. Parts stay open to replay.
@@ -400,7 +400,7 @@ function Ride({ part, phase, setPhase, onAgain, onPick }: { part: MeterPart; pha
     <div className={`mr ${phase === 'drive' ? 'playing' : ''}`}>
       <div className="mr-col">
         <div className="topbar">
-          <Logo />
+          {device !== 'desktop' ? <Logo /> : <span />}
           <div className="mid label fg">Meter's Running · {part.part === 1 ? 'Part 1' : 'Part 2'}</div>
           <div className="right">
             {device !== 'desktop' && <FullscreenButton />}

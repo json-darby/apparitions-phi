@@ -40,7 +40,7 @@ function ownVoice(s: Shown, mine: VoiceId): VoiceId {
 
 export default function NewItems() {
   const { engine, content, sound, settings, store, reducedMotion } = useApp();
-  const { device } = useDevice();
+  const { device, w, h } = useDevice();
   const { query } = useRoute();
   // ?ref= replays one met item's card: nothing is introduced, today's queue is untouched
   const replayRef = query.get('ref');
@@ -286,13 +286,22 @@ export default function NewItems() {
   if (!cur) return null;
 
   const colour = art.mode === 'gather' || art.who === 'pim' ? '#E8E8E8' : content.person(art.who)?.colour ?? '#2E9BFF';
+  // tablet and desktop: the art box gives way on a short window (learn.css), and what is drawn in it follows
+  const fitArt = device !== 'phone';
   const artNode = (
     // one art box for words, letters and patterns alike, so nothing under it moves between cards
     <div className="art np-art" aria-hidden={false}>
       {cur.letter ? (
-        <LetterFromDots key={cur.ref} char={cur.letter.char} strokes={cur.letter.strokes} size={device === 'phone' ? 160 : 220} cue={art.cue} />
+        <LetterFromDots
+          key={cur.ref}
+          char={cur.letter.char}
+          strokes={cur.letter.strokes}
+          size={device === 'phone' ? 160 : 220}
+          cue={art.cue}
+          style={fitArt ? { width: 'auto', height: 'min(220px, 100%)', aspectRatio: '1 / 1' } : undefined}
+        />
       ) : art.mode === 'word' && !reducedMotion ? (
-        <FaceToWord who={art.who} thai={cur.item ? cur.item.thai : cur.thai} colour={colour} cue={art.cue} style={{ width: '100%', height: '100%' }} />
+        <FaceToWord who={art.who} thai={cur.item ? cur.item.thai : cur.thai} colour={colour} cue={art.cue} style={{ width: '100%', height: '100%', ...(fitArt ? { minHeight: 0 } : null) }} />
       ) : (
         <Apparition
           who={art.who}
@@ -321,6 +330,8 @@ export default function NewItems() {
   );
 
   const hookBlock = <HookBlock shown={cur} />;
+  // a landscape tablet has the width for a side panel with the hook; portrait keeps it on the card, as phones do
+  const hookInPanel = device === 'tablet' && w > h;
 
   const main = (
     <div
@@ -341,7 +352,7 @@ export default function NewItems() {
       {cur.item && <ItemFace item={cur.item} other={otherSpeaker(cur, settings.identity)} voices={voices} />}
       {cur.letter && <LetterFace letter={cur.letter} voices={voices} />}
       {cur.pattern && <PatternFace pattern={cur.pattern} voices={voices} />}
-      {device !== 'tablet' && hookBlock}
+      {!hookInPanel && hookBlock}
     </div>
   );
 
@@ -385,7 +396,7 @@ export default function NewItems() {
   );
 
   const panel =
-    device === 'tablet' ? (
+    hookInPanel ? (
       <div className="stack gap-6" style={{ paddingTop: 8 }}>
         {hookBlock}
       </div>
