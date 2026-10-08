@@ -18,6 +18,7 @@ import { DRILLS } from '../path/pathway';
 import { addMark, markForRoute } from '../path/guide';
 import { RowTearWipe } from '../anim';
 import { useOpenFullscreen } from './fullscreen';
+import { useAutoUpdate } from './update';
 import { FullscreenButton } from '../ui/kit';
 import { TAB_ROUTES, TabBar } from './Nav';
 import { SCHOOL } from '../school/names';
@@ -88,6 +89,7 @@ function Shell() {
   // phone and tablet: the tab bar on the main screens, so Settings and the rest are always reachable
   const tabs = device !== 'desktop' && settings.onboarded && TAB_ROUTES.includes(route.path);
   useOpenFullscreen(settings.fullscreen);
+  useAutoUpdate(route.path);
 
   return (
     <div className={`app grain device-${device} ${touch ? 'touch' : 'mouse'} ${reducedMotion ? 'reduced' : ''} ${tabs ? 'has-tabs' : ''}`}>
