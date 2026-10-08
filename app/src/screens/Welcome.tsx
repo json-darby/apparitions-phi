@@ -1,15 +1,15 @@
 // Opening and set-up: Pim gathering out of light, then four questions in the
 // step shell the primer shares (the primer is step 5 on a first run).
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useApp } from '../app/context';
-import { useDevice } from '../app/device';
+import { isShortWide, useDevice } from '../app/device';
 import { navigate } from '../app/router';
 import { Apparition } from '../anim/Apparition';
 import { addDays, daysBetween, localDate } from '../core/dates';
 import { FullscreenButton, Label, OptionCards } from '../ui/kit';
 import { FitText } from '../ui/FitText';
-import { StepShell } from '../ui/StepShell';
+import { StepShell, stackOverflow, useFitToScreen } from '../ui/StepShell';
 import { useKeys } from '../input/keys';
 import '../ui/steps.css';
 
@@ -32,8 +32,10 @@ function wordsBy(courseDays: number, minutes: number) {
 
 export default function Welcome() {
   const { settings, updateSettings, reducedMotion } = useApp();
-  const { device } = useDevice();
+  const { device, w, h } = useDevice();
   const today = localDate(Date.now());
+  const wide = isShortWide(w, h);
+  const split = !wide && device !== 'phone';
   const [step, setStep] = useState(0);
   const [identity, setIdentity] = useState(settings.identity);
   const [minutes, setMinutes] = useState(settings.minutes);
@@ -41,6 +43,15 @@ export default function Welcome() {
   const [trip, setTrip] = useState(settings.tripDate ?? addDays(today, 30));
   const [noTrip, setNoTrip] = useState(false);
   const [adult, setAdult] = useState(settings.adult);
+  // the opening fits the screen the way the step pages do
+  const opening = useRef<HTMLDivElement>(null);
+  useFitToScreen(opening, () => {
+    const el = opening.current;
+    const body = el?.querySelector<HTMLElement>('.welcome-body');
+    if (!el || !body) return 0;
+    if (wide) return body.scrollHeight - body.clientHeight;
+    return split ? stackOverflow(body) : stackOverflow(el);
+  }, step, `${wide}${split}`);
   // the primer is the fifth step on a first run; set-up opened again from Settings is four
   const total = settings.primerDone ? 4 : 5;
 
@@ -68,9 +79,8 @@ export default function Welcome() {
   });
 
   if (step === 0) {
-    const split = device !== 'phone';
     return (
-      <div className={`welcome ${split ? 'split' : ''}`}>
+      <div ref={opening} className={`welcome ${split ? 'split' : ''} ${wide ? 'wide' : ''}`}>
         <span className="welcome-fs"><FullscreenButton /></span>
         {/* the face fills the space above the words (beside them on a tablet), never behind them */}
         <div className="welcome-art">

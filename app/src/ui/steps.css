@@ -61,19 +61,71 @@
 .steps.split:not([data-fit='0']) .steps-body { gap: 12px; margin-top: 12px; }
 .steps:not([data-fit='0']) .steps-foot { padding-top: 8px; }
 .steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-title { min-height: 0; }
-.steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-head { min-height: calc(48px + env(safe-area-inset-top)); }
+.steps:not(.wide):is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-head { min-height: calc(48px + env(safe-area-inset-top)); }
 .steps.split:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .steps-head { min-height: 56px; }
 .steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .opt { min-height: 56px; padding-top: 12px; padding-bottom: 12px; }
 .steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .opt.big { padding-top: 8px; padding-bottom: 8px; }
 .steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .date-box { height: 56px; }
 .steps:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .step-facts { padding-top: 10px; }
 .steps:not(.split):is([data-fit='3'], [data-fit='4']) .steps-art { display: none; }
-.steps:not(.split):is([data-fit='3'], [data-fit='4']) .steps-rail { padding-bottom: 16px; }
+.steps:not(.split):not(.wide):is([data-fit='3'], [data-fit='4']) .steps-rail { padding-bottom: 16px; }
 .steps.split:is([data-fit='3'], [data-fit='4']) .h-l { font-size: 40px; }
-.steps.split:is([data-fit='3'], [data-fit='4']) .steps-foot { padding-bottom: 16px; }
 .steps[data-fit='4'] .h-l { font-size: 30px; }
 .steps[data-fit='4'] .body { line-height: 1.4; }
 .steps[data-fit='4'] .steps-body { gap: 8px; }
+
+/* ---------- a short, wide screen: a phone on its side, or a window squashed flat ----------
+   The art steps aside; the page flows over two balanced columns; Back and Next stand at the
+   right edge, Next at the bottom, by the thumb. The same fitting levels apply (StepShell). */
+.steps.wide { --gutter: 20px; --wide-foot: clamp(128px, 20vw, 156px); }
+.steps.wide .steps-main {
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--wide-foot); grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-areas: 'head head' 'rail rail' 'body foot'; overflow: hidden;
+}
+.steps.wide .steps-head { grid-area: head; min-height: calc(40px + env(safe-area-inset-top)); }
+.steps.wide .steps-rail { grid-area: rail; padding-bottom: 12px; }
+.steps.wide .steps-body {
+  grid-area: body; display: block; min-height: 0; overflow: hidden;
+  padding: 0 0 max(12px, env(safe-area-inset-bottom)) var(--gutter);
+}
+.steps.wide .steps-body > * {
+  display: block; height: 100%; column-count: 2; column-gap: 32px; column-fill: balance;
+  animation-name: fadeInFlat;
+}
+@keyframes fadeInFlat { from { opacity: 0; } }
+.steps.wide .steps-body > * > * { margin: 0 0 12px; break-inside: avoid; }
+.steps.wide .steps-body > * > p { break-inside: auto; orphans: 2; widows: 2; }
+.steps.wide .steps-body .primer-list { display: block; break-inside: auto; }
+.steps.wide .steps-body .primer-list > * { break-inside: avoid; }
+/* groups inside the page (a label over its rows or cards) flow too, row by row; a label stays with what follows it */
+.steps.wide .steps-body > * .stack { display: block; break-inside: auto; }
+.steps.wide .steps-body > * .stack > * { break-inside: avoid; }
+.steps.wide .steps-body > * .stack > * + * { margin-top: 8px; }
+.steps.wide .steps-body .label { break-after: avoid; }
+/* single-file lists flow card by card and step by step; side-by-side grids stay whole */
+.steps.wide .steps-body .opts:not(.two), .steps.wide .steps-body .primer-day { display: block; break-inside: auto; }
+.steps.wide .steps-body .opts:not(.two) > *, .steps.wide .steps-body .primer-day > * { break-inside: avoid; }
+.steps.wide .steps-body .opts:not(.two) > * + *, .steps.wide .steps-body .primer-day > * + * { margin-top: 8px; }
+.steps.wide .steps-body .opts:not(.two) > .opt { width: 100%; }
+/* lists may break between their rows wherever they sit (this outranks the "keep whole" rules above) */
+.steps.wide .steps-body > * :is(.primer-list, .opts:not(.two), .primer-day) { break-inside: auto; }
+.steps.wide .steps-body > * > :last-child { margin-bottom: 0; }
+.steps.wide .h-l { font-size: 32px; }
+.steps.wide .steps-title { min-height: 0; height: auto; }
+.steps.wide .steps-foot {
+  grid-area: foot; position: static; background: none; justify-content: flex-end;
+  padding: 0 var(--gutter) max(12px, env(safe-area-inset-bottom)) 16px;
+}
+.steps.wide .steps-btns { flex-direction: column; gap: 8px; }
+.steps.wide .steps-btns .pill { height: 52px; width: 100%; flex: none; padding: 0 12px; font-size: 16px; }
+.steps.wide:not([data-fit='0']) .steps-body > * { column-gap: 24px; }
+.steps.wide:not([data-fit='0']) .steps-body > * > * { margin-bottom: 8px; }
+.steps.wide:is([data-fit='3'], [data-fit='4']) .h-l { font-size: 26px; }
+.steps.wide[data-fit='4'] .h-l { font-size: 24px; }
+.steps.wide[data-fit='4'] .body { font-size: 14px; }
+/* even the last level runs over (a tiny screen): the columns grow downwards and scroll */
+.steps.wide[data-scroll] .steps-body { overflow-y: auto; }
+.steps.wide[data-scroll] .steps-body > * { height: auto; }
 
 /* a question's title: the same two-line box on every step, so the words below never jump */
 .steps-title { min-height: 72px; text-wrap: balance; }
@@ -140,9 +192,40 @@
 @media (max-width: 389px) { .tone-hook svg { width: 28px; } .tone-hook > div + div { padding-left: 10px; } }
 @media (max-width: 359px) { .welcome-name h1 { font-size: 80px; } }
 
+/* fitting (Welcome uses the step shell's fit): the gaps, then the name, then Pim's room */
+.welcome:not([data-fit='0']) .welcome-body { gap: 10px; }
+.welcome:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .welcome-name h1 { font-size: 80px; }
+.welcome:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .tone-hook > div { padding: 8px 0; }
+.welcome:not(.split):not(.wide):is([data-fit='3'], [data-fit='4']) .welcome-art { min-height: 120px; }
+.welcome[data-fit='4'] .welcome-name h1 { font-size: 64px; }
+
 .welcome.split { flex-direction: row; }
 .welcome.split .welcome-art { flex: none; width: 44%; max-width: 520px; height: 100%; min-height: 0; border-right: 1px solid var(--rule); margin: 0; }
 .welcome.split .welcome-fs { top: 20px; right: 28px; }
-.welcome.split .welcome-body { flex: 1; justify-content: center; padding: 48px; max-width: 616px; }
-.welcome.split .welcome-go { margin-top: 24px; }
+/* the words sit in the middle of the space; Begin sits where Next does on the pages after it */
+.welcome.split .welcome-body { flex: 1; padding: 0 48px clamp(20px, 4dvh, 40px); max-width: 616px; }
+.welcome.split .welcome-body > :first-child { margin-top: auto; }
+.welcome.split .welcome-go { margin-top: auto; padding-top: 24px; }
+@media (max-width: 899px) { .welcome.split .welcome-body { padding-left: 32px; padding-right: 32px; } }
 .welcome.split .body { font-size: 17px; }
+
+/* a short, wide screen: Pim at the left, the words at the right, Begin where Next stands on the pages after */
+.welcome.wide { flex-direction: row; overflow: hidden; --gutter: 20px; --wide-foot: clamp(128px, 20vw, 156px); }
+.welcome.wide .welcome-art { flex: none; width: 34%; max-width: 420px; height: 100%; min-height: 0; margin: 0; border-right: 1px solid var(--rule); }
+.welcome.wide .welcome-fs { top: calc(2px + env(safe-area-inset-top)); }
+.welcome.wide .welcome-body {
+  flex: 1; min-width: 0; overflow-y: auto; display: grid; gap: 12px 0;
+  grid-template-columns: minmax(0, 1fr) var(--wide-foot); grid-template-rows: minmax(0, 1fr) auto auto auto auto auto;
+  padding: 12px 0 max(12px, env(safe-area-inset-bottom)) 28px;
+}
+.welcome.wide .welcome-body > .label { grid-column: 1 / -1; grid-row: 2; padding-right: 64px; }
+.welcome.wide .welcome-name { grid-column: 1 / -1; grid-row: 3; }
+.welcome.wide .welcome-name h1 { font-size: 72px; }
+.welcome.wide .welcome-body > .body { grid-column: 1 / -1; grid-row: 4; padding-right: var(--gutter); }
+.welcome.wide .welcome-go { display: contents; }
+.welcome.wide .welcome-go .small { grid-column: 1 / -1; grid-row: 5; padding-right: var(--gutter); }
+.welcome.wide .tone-hook { grid-column: 1; grid-row: 6; align-self: end; }
+.welcome.wide .welcome-go .pill { grid-column: 2; grid-row: 6; align-self: end; width: auto; height: 52px; margin: 0 var(--gutter) 0 16px; padding: 0 12px; font-size: 16px; }
+.welcome.wide:is([data-fit='2'], [data-fit='3'], [data-fit='4']) .welcome-name h1 { font-size: 60px; }
+.welcome.wide[data-fit='4'] .welcome-name h1 { font-size: 52px; }
+.welcome.wide[data-fit='4'] .welcome-go .small { display: none; }

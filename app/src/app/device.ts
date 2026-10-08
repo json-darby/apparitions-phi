@@ -10,6 +10,14 @@ export function deviceFor(w: number, h: number): Device {
   return 'desktop';
 }
 
+/**
+ * A short, wide screen: a phone on its side, or a window squashed flat. Pages
+ * lay out across rather than down there, since there is little height to stack in.
+ */
+export function isShortWide(w: number, h: number): boolean {
+  return h < 540 && w > h * 1.25;
+}
+
 export function useDevice(): { device: Device; touch: boolean; w: number; h: number } {
   const get = () => ({
     device: deviceFor(window.innerWidth, window.innerHeight),

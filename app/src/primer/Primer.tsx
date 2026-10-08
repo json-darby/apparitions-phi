@@ -133,13 +133,14 @@ export default function Primer() {
       }
       foot={
         <>
+          {/* the keys above the buttons, so Next sits where it does on every other page */}
+          {device === 'desktop' && <KeyHints hints={[['→', 'Next'], ['←', 'Back'], ['1–5', 'Hear a word'], ['Space', 'Hear it again']]} />}
           <div className="steps-btns">
             <button type="button" className="pill big" onClick={back} disabled={at === 0}>Back</button>
             <button type="button" className="pill solid big" onClick={next}>
               {at < last ? 'Next' : firstRun ? 'Start day 1' : 'Done'}
             </button>
           </div>
-          {device === 'desktop' && <KeyHints hints={[['→', 'Next'], ['←', 'Back'], ['1–5', 'Hear a word'], ['Space', 'Hear it again']]} />}
         </>
       }
     >

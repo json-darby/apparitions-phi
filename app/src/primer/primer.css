@@ -75,3 +75,7 @@
 .primer-day li { padding-left: 6px; }
 .primer-day b { display: block; font-size: 17px; }
 .primer-day span { display: block; color: var(--fg-2); font-size: 15px; }
+/* a short, wide screen at its tightest: the ear check's two shapes get a little shorter */
+.steps.wide:is([data-fit='3'], [data-fit='4']) .primer-choice { min-height: 64px; padding: 6px 8px; gap: 4px; }
+.steps.wide:is([data-fit='3'], [data-fit='4']) .primer-choice svg { height: 40px; width: auto; }
+.steps.wide[data-fit='4'] .primer-page .pill:not(.solid) { min-height: 40px; }
