@@ -58,7 +58,8 @@ export interface Item {
   /** male/female speech forms when the words themselves differ */
   forms?: { m: { thai: string; roman: string }; f: { thai: string; roman: string } };
   hook?: string;
-  example?: { thai: string; roman: string; en: string };
+  /** forms: a man's and a woman's version when they differ (ผม / ฉัน, ครับ / ค่ะ); thai and roman are the man's */
+  example?: { thai: string; roman: string; en: string; forms?: { m: { thai: string; roman: string }; f: { thai: string; roman: string } } };
   /** classifier item id, for countable nouns */
   classifier?: string;
   /** item ids that sound or look alike, used for contrast drills and distractors */
@@ -103,6 +104,8 @@ export interface PatternTile {
   en: string;
   /** slot tiles are where an item goes */
   slot?: boolean;
+  /** a man's and a woman's version of the tile (ผม / ฉัน); thai and roman are the man's */
+  forms?: { m: { thai: string; roman: string }; f: { thai: string; roman: string } };
 }
 
 export interface Pattern {

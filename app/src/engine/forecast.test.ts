@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest';
 import { startOfDate } from '../core/dates';
 import { buildScope, runForecast, scoreReadiness, type Forecast } from './forecast';
 import { buildSnapshot } from './profile';
-import { simulate, type SimOptions, type SimResult, formatSim } from './simulator';
+import { simulate, syntheticContent, type SimOptions, type SimResult, formatSim } from './simulator';
+import { planWords } from '../path/pathway';
 
 const TRIP = 30; // trip on the morning of day 31
 
@@ -99,7 +100,9 @@ describe('60-day course', () => {
       expect(d.plannedReviewMin).toBeLessThanOrEqual(d.capacityMin + 1e-9);
       expect(d.actualMin).toBeLessThanOrEqual(d.budgetMin * 1.1);
     }
-    expect(r.introducedByKind.item).toBeGreaterThan(580);
+    // the full plan: the whole alphabet, and the words onboarding promises (plans.test.ts holds the real course to it)
+    expect(r.introducedByKind.letter).toBe(syntheticContent(60).letters.length);
+    expect(r.introducedByKind.item).toBeGreaterThanOrEqual(planWords(60, 60) * 0.95);
     expect(r.maxDueAfterTrip).toBeLessThanOrEqual(0);
   });
 });

@@ -9,7 +9,7 @@ import type { CardRow, Store } from '../db/store';
 import type { Clock } from '../core/clock';
 import { DAY_MS, addDays, courseDay, localDate, startOfDate, startOfDay } from '../core/dates';
 import type { Settings } from '../core/settings';
-import { dayBlocks, newQuota } from '../path/pathway';
+import { dayBlocks, isFullPlan, newQuota, teachingCompare } from '../path/pathway';
 import { DEFAULT_TYPICAL_MS, SIX_TO_FSRS, Six, blend, measuredGrade, predictsRecall } from './grade';
 import { calibrate, personalRetention, type Calibration } from './calibrate';
 
@@ -457,19 +457,21 @@ export class Engine {
   }
 
   /** New content available on or before a day that has not been met yet. */
+  /** What is new and open today, in teaching order (pathway teachingCompare). */
   newCandidates(day = this.day()): ContentEntry[] {
     const met = this.introducedRefs();
     return this.content
       .allEntries()
       .filter((e) => e.day <= day && !met.has(e.ref) && this.allowed(e))
-      .sort((a, b) => a.day - b.day || (b.survival ? 1 : 0) - (a.survival ? 1 : 0));
+      .sort(teachingCompare(day, isFullPlan(this.settings.courseDays, this.settings.minutes)));
   }
 
   /**
    * Today's plan. Reviews first. If they exceed the budget, new items are cut
    * first; if reviews alone exceed it, the least urgent are deferred.
+   * `keep: false` leaves the day's record to keepPlan (a screen must not write while it renders).
    */
-  planDay(): DuePlan {
+  planDay({ keep = true }: { keep?: boolean } = {}): DuePlan {
     const now = this.clock.now();
     const endOfToday = startOfDay(now) + DAY_MS - 1;
     const due = this.dueNow(endOfToday);
@@ -505,15 +507,20 @@ export class Engine {
       newRefs.push(e.ref);
       newMin += m;
     }
-    // the first plan of each day is kept, so habits can be measured as the share of the plan done
-    const key = `plan:${this.today()}`;
-    if (!this.store.get<DayPlanRecord | null>(key, null)) {
-      this.store.set<DayPlanRecord>(key, { reviews: reviews.length, newItems: newRefs.length, minutes: used + newMin });
-    }
-    return {
+    const plan: DuePlan = {
       date: this.today(), day: this.day(), reviews, deferred, newRefs,
       newCut: wanted.length - newRefs.length, reviewMinutes: used, newMinutes: newMin, capacityMinutes: capacity,
     };
+    if (keep) this.keepPlan(plan);
+    return plan;
+  }
+
+  /** The first plan of each day is kept, so habits can be measured as the share of the plan done. */
+  keepPlan(plan: DuePlan): void {
+    const key = `plan:${plan.date}`;
+    if (!this.store.get<DayPlanRecord | null>(key, null)) {
+      this.store.set<DayPlanRecord>(key, { reviews: plan.reviews.length, newItems: plan.newRefs.length, minutes: plan.reviewMinutes + plan.newMinutes });
+    }
   }
 
   /** Share of a past day's first plan that was done: distinct cards answered plus items met, over what was planned. */

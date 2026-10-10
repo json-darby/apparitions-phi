@@ -9,6 +9,7 @@ import { Link } from '../app/router';
 import { SaveFiles } from './settings/SaveFiles';
 import { ResetProgress } from './settings/ResetProgress';
 import { formatSim, simulate } from '../engine/simulator';
+import { planWords } from '../path/pathway';
 import { Label, Screen, SectionHead, Seg, Toggle, TopBar } from '../ui/kit';
 import { fullscreenSupported, isStandalone } from '../app/fullscreen';
 import { SoundSettings } from '../audio/SoundSettings';
@@ -153,7 +154,7 @@ export default function Settings() {
       <Line title="Daily minutes">
         <Seg label="Daily minutes" value={s.minutes} onChange={(v) => set({ minutes: v })} options={[{ v: 60, label: '60' }, { v: 30, label: '30' }]} />
       </Line>
-      <Line title="Course length" note="Sixty goes further: about 620 words and reading. Progress stays if you switch.">
+      <Line title="Course length" note={`Sixty goes further: about ${planWords(60, s.minutes)} words${s.minutes === 60 ? ' and reading' : ''}. Progress stays if you switch.`}>
         <Seg label="Course length" value={s.courseDays} onChange={(v) => set({ courseDays: v })} options={[{ v: 30, label: '30 d' }, { v: 60, label: '60 d' }]} />
       </Line>
       <Line title="Trip date" note="Nothing is scheduled past it">

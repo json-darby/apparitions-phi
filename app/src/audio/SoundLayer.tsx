@@ -5,7 +5,7 @@
 // subtitle; a full caption when no clip exists), and a real record sheet:
 // microphone permission, live level, stop, then the pitch comparison and score.
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { useApp } from '../app/context';
 import { useKeys } from '../input/keys';
 import { myVoiceFor } from '../core/settings';
@@ -56,9 +56,38 @@ export function SoundLayer() {
 type Cap = NonNullable<SoundState['caption']>;
 type Rec = NonNullable<SoundState['recording']>;
 
+/** Every bar that holds buttons along the bottom of a screen. */
+const FOOTERS = '.learn-foot, .lesson-foot, .talk-foot, .sn-run-foot, .sheet-foot, .steps-foot, .primer-foot, .tabbar';
+
+/**
+ * The caption floats over the screen, so it must never sit on a screen's own buttons: when it appears it
+ * measures the bars along the bottom of the view and rises just clear of the highest one.
+ */
+function useClearOfFooters(id: number | string) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.bottom = '';
+    const vh = window.innerHeight;
+    let top = vh;
+    for (const f of document.querySelectorAll<HTMLElement>(FOOTERS)) {
+      const r = f.getBoundingClientRect();
+      // only a bar actually on screen and starting in its lower half (a tall one never lifts the chip mid-screen)
+      if (r.height > 0 && r.width > 0 && r.top < vh && r.top > vh * 0.5) top = Math.min(top, r.top);
+    }
+    if (top >= vh) return;
+    const css = parseFloat(getComputedStyle(el).bottom) || 0;
+    const clear = vh - top + 12;
+    if (clear > css) el.style.bottom = `${clear}px`;
+  }, [id]);
+  return ref;
+}
+
 function Caption({ caption }: { caption: Cap }) {
+  const ref = useClearOfFooters(caption.id);
   return (
-    <div className="caption-layer" aria-live="polite">
+    <div className="caption-layer" aria-live="polite" ref={ref}>
       <div className="caption" key={caption.id}>
         <div className="wave" aria-hidden>
           {[0, 1, 2, 3, 4].map((i) => (
@@ -84,8 +113,9 @@ function Caption({ caption }: { caption: Cap }) {
 
 /** Audio is playing: a small chip; the text only as a subtitle when the screen asks. */
 function AudioChip({ caption }: { caption: Cap }) {
+  const ref = useClearOfFooters(caption.id);
   return (
-    <div className={`caption-layer audio ${caption.subtitle ? 'with-sub' : ''}`} aria-live="off">
+    <div className={`caption-layer audio ${caption.subtitle ? 'with-sub' : ''}`} aria-live="off" ref={ref}>
       {caption.subtitle ? (
         <div className="caption" key={caption.id}>
           <Wave />

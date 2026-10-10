@@ -149,3 +149,18 @@ def test_audio_mock_stt_returns_text_or_corruption(mock):
     heard = mock.stt(stage="t", audio=a).text
     assert heard != "มาก" and S.compare("มาก", heard)["stt"] == "fail"
     assert mock.stt(stage="t", audio=a).words  # word times for segmentation
+
+
+def test_audio_quality_limiter_keeps_a_burst_clip_at_full_loudness():
+    # a vowel with one sharp burst before it (as a ป or ต): plain gain would turn the whole clip down
+    sr = encode.OUT_SR
+    t = np.arange(int(0.6 * sr)) / sr
+    x = (0.05 * np.sin(2 * np.pi * 180 * t)).astype(np.float32)
+    x[int(0.1 * sr):int(0.1 * sr) + 48] += 0.3  # a burst about 6 dB over the ceiling at full loudness
+    y, _, after = encode.normalise(x, sr)
+    assert np.max(np.abs(y)) <= encode.PEAK_CEILING + 1e-6
+    assert abs(after - encode.TARGET_LUFS) < 0.5
+    # the vowel itself is untouched in shape: away from the burst the gain is the same everywhere
+    later = slice(int(0.3 * sr), int(0.5 * sr))
+    ratio = y[later] / np.where(np.abs(x[later]) > 1e-4, x[later], 1)
+    assert np.ptp(ratio[np.abs(x[later]) > 1e-3]) < 1e-3

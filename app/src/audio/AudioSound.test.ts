@@ -7,6 +7,7 @@ import { Content } from '../content/repo';
 import { emptyMedia, type Item } from '../content/types';
 import { defaultSettings } from '../core/settings';
 import { AudioSound } from './AudioSound';
+import { genderOfText } from './sound';
 
 function item(id: string, thai: string, clip: boolean): Item {
   const media = emptyMedia();
@@ -57,5 +58,68 @@ describe('only course voices', () => {
     expect(speak).not.toHaveBeenCalled();
     sound.stop();
     await done;
+  });
+});
+
+describe('the voice fits the words', () => {
+  it('reads the speaker from particles and the word for I', () => {
+    expect(genderOfText('ผมเห็นด้วยกับคุณ')).toBe('m');
+    expect(genderOfText('ขอโทษครับ ห้องน้ำ')).toBe('m');
+    expect(genderOfText('ดิฉันมาจากอังกฤษ')).toBe('f');
+    expect(genderOfText('ขอบคุณค่ะ')).toBe('f');
+    expect(genderOfText('ค่าธรรมเนียม')).toBeNull();
+    expect(genderOfText('คะแนน')).toBeNull();
+    expect(genderOfText('ไปไหน')).toBeNull();
+  });
+
+  const sound = new AudioSound();
+  const entry = {
+    audio: { 'f1.normal': 'a/f1.ogg', 'm1.normal': 'a/m1.ogg', 'm2.normal': 'a/m2.ogg' },
+    pitch: null,
+    texts: new Set<string>(),
+  };
+
+  it('never has a woman say ผม, even when a screen asks for her voice', () => {
+    for (let i = 0; i < 8; i++) expect(sound.pickClip(entry, { thai: 'ผมเห็นด้วยกับคุณ', tones: [] })?.voice).toMatch(/^m/);
+    expect(sound.pickClip(entry, { thai: 'ผมเห็นด้วยกับคุณ', tones: [], voice: 'f1' })?.voice).toMatch(/^m/);
+  });
+
+  it('never has a man say ดิฉัน', () => {
+    const f = { ...entry, audio: { 'f1.normal': 'a/f1.ogg', 'f2.normal': 'a/f2.ogg', 'm1.normal': 'a/m1.ogg' } };
+    expect(sound.pickClip(f, { thai: 'ดิฉันมาจากอังกฤษ', tones: [], voice: 'm1' })?.voice).toMatch(/^f/);
+  });
+
+  it('still plays the only clip there is', () => {
+    const one = { ...entry, audio: { 'f1.normal': 'a/f1.ogg' } };
+    expect(sound.pickClip(one, { thai: 'ผมกินข้าว', tones: [] })?.voice).toBe('f1');
+  });
+});
+
+
+describe('two-form lines', () => {
+  const line = {
+    id: 'example.chicken', thai: 'ผมกินไก่', roman: 'phǒm gin gài', speaker: 'you',
+    forms: { m: { thai: 'ผมกินไก่', roman: 'phǒm gin gài' }, f: { thai: 'ฉันกินไก่', roman: 'chǎn gin gài' } },
+    audio: { 'm1.normal': 'a/m1.ogg', 'm2.normal': 'a/m2.ogg', 'f1.normal': 'a/f1.ogg' },
+  };
+  const content = new Content({ items: [], letters: [], patterns: [], culture: [], lines: [line] });
+  const sound = new AudioSound();
+  sound.configure({ content, settings: defaultSettings('2026-10-09') });
+
+  it('reads the woman\'s version in a woman\'s voice, even when a man\'s voice is asked for', () => {
+    expect(sound.hasClip({ thai: 'ฉันกินไก่' })).toBe(true);
+    const idx = (sound as unknown as { audioIndex(): { resolve(r: { thai: string }): unknown } }).audioIndex();
+    const entry = idx.resolve({ thai: 'ฉันกินไก่' }) as Parameters<AudioSound['pickClip']>[0];
+    expect(sound.pickClip(entry, { thai: 'ฉันกินไก่', tones: [], voice: 'm1' })?.voice).toBe('f1');
+    for (let i = 0; i < 6; i++) expect(sound.pickClip(entry, { thai: 'ฉันกินไก่', tones: [] })?.voice).toBe('f1');
+    for (let i = 0; i < 6; i++) expect(sound.pickClip(entry, { thai: 'ผมกินไก่', tones: [] })?.voice).toMatch(/^m/);
+  });
+});
+
+describe('the audio cache', () => {
+  it('has the same name in the app and the service worker', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { AUDIO_CACHE } = await import('./AudioSound');
+    expect(readFileSync('vite.config.ts', 'utf-8')).toContain(`cacheName: '${AUDIO_CACHE}'`);
   });
 });

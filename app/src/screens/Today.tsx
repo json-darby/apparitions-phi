@@ -2,7 +2,7 @@
 // everything as a free menu: Learn, then The Street and Drills (beside it in
 // the panel on a tablet or desktop).
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useApp, useStoreVersion } from '../app/context';
 import { useDevice } from '../app/device';
 import { Apparition } from '../anim/Apparition';
@@ -45,7 +45,9 @@ export default function Today() {
   const spine = spineFor(day, settings.courseDays);
   const { forecast } = useForecast();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => engine.planDay(), [v, settings]);
+  const plan = useMemo(() => engine.planDay({ keep: false }), [v, settings]);
+  // the day's first plan is saved once the screen is up, not while it renders
+  useEffect(() => engine.keepPlan(plan), [engine, plan]);
   const today = localDate(Date.now());
   const act = store.activity().find((a) => a.date === today);
   const minsToday = Math.round((act?.ms ?? 0) / 60_000);

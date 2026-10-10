@@ -39,6 +39,8 @@ export interface CourseLine {
   roman?: string;
   en?: string;
   speaker?: string;
+  /** a learner line's man's and woman's versions when they differ (f1 says f, m1 says m) */
+  forms?: { m: { thai: string; roman: string }; f: { thai: string; roman: string } };
   /** keys "<voice>.<speed>" (voice may be a cast id), values paths relative to the app root */
   audio: Record<string, string | null>;
   pitch?: (number | null)[][] | null;
@@ -226,6 +228,35 @@ export function sayForm(it: Item, identity: Identity): { thai: string; roman: st
   return it.polite === 'question' || base.thai.endsWith('นะ')
     ? { thai: base.thai + 'คะ', roman: `${base.roman} khá` }
     : { thai: base.thai + 'ค่ะ', roman: `${base.roman} khâ` };
+}
+
+/**
+ * The course as this learner speaks it: example sentences and pattern tiles
+ * that a man and a woman say differently (ผม / ฉัน, ครับ / ค่ะ) show the
+ * learner's own form. The course stores the man's form as the text, so a man's
+ * view is the course itself.
+ */
+export function forIdentity(c: Content, identity: Identity): Content {
+  if (identity === 'm') return c;
+  let changed = false;
+  const items = c.items.map((it) => {
+    const f = it.example?.forms?.f;
+    if (!f || !it.example) return it;
+    changed = true;
+    return { ...it, example: { ...it.example, thai: f.thai, roman: f.roman } };
+  });
+  const patterns = c.patterns.map((p) => {
+    if (!p.examples.some((tiles) => tiles.some((t) => t.forms))) return p;
+    changed = true;
+    return {
+      ...p,
+      examples: p.examples.map((tiles) =>
+        tiles.map((t) => (t.forms ? { ...t, thai: t.forms.f.thai, roman: t.forms.f.roman, en: t.en.replace('(male)', '(female)') } : t)),
+      ),
+    };
+  });
+  if (!changed) return c;
+  return new Content({ items, letters: c.letters, patterns, culture: c.culture, lines: [...c.lines.values()], tasks: c.tasks });
 }
 
 /** Both forms, for listening (listening always includes both). */

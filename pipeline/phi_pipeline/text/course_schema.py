@@ -43,7 +43,8 @@ ITEM = closed({
     "id": STR, "kind": {"enum": ["word", "phrase"]}, "thai": STR, "roman": STR, "tones": TONE_LIST, "en": STR,
     "theme": {"enum": THEMES}, "day": INT, "polite": {"enum": ["statement", "question"]}, "speaker": {"enum": ["m", "f"]},
     "forms": closed({"m": FORM, "f": FORM}, ["m", "f"]), "hook": STR,
-    "example": closed({"thai": STR, "roman": STR, "en": STR}, ["thai", "roman", "en"]),
+    # forms: a man's and a woman's version of the example (pipeline/female_examples.py)
+    "example": closed({"thai": STR, "roman": STR, "en": STR, "forms": closed({"m": FORM, "f": FORM}, ["m", "f"])}, ["thai", "roman", "en"]),
     "classifier": STR, "contrasts": STRS, "survival": BOOL, "adult": BOOL, "skills": SKILL_LIST, "tags": STRS,
     "status": {"enum": STATUS}, "media": MEDIA,
 }, ["id", "kind", "thai", "roman", "tones", "en", "theme", "day", "survival", "skills", "tags", "status", "media"])
@@ -56,7 +57,7 @@ LETTER = closed({
     "nameThai": STR,  # pipeline extra: the Thai-script name the audio stage voices (the app ignores it)
 }, ["id", "char", "name", "keyword", "initial", "final", "cls", "day", "strokes", "lookalikes", "skills", "status", "media"])
 
-TILE = closed({"thai": STR, "roman": STR, "en": STR, "slot": BOOL}, ["thai", "roman", "en"])
+TILE = closed({"thai": STR, "roman": STR, "en": STR, "slot": BOOL, "forms": closed({"m": FORM, "f": FORM}, ["m", "f"])}, ["thai", "roman", "en"])
 PATTERN = closed({
     "id": STR, "frame": STR, "en": STR, "note": STR, "day": INT,
     "examples": {"type": "array", "items": {"type": "array", "items": TILE}},

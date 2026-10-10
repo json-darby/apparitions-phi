@@ -7,6 +7,7 @@ import { isShortWide, useDevice } from '../app/device';
 import { navigate } from '../app/router';
 import { Apparition } from '../anim/Apparition';
 import { addDays, daysBetween, localDate } from '../core/dates';
+import { planWords } from '../path/pathway';
 import { FullscreenButton, Label, OptionCards } from '../ui/kit';
 import { FitText } from '../ui/FitText';
 import { StepShell, stackOverflow, useFitToScreen } from '../ui/StepShell';
@@ -23,12 +24,6 @@ function fmt(date: string, weekday = false) {
 
 /** Pim's box in the art: the right of the band on a phone, the whole left half on a tablet (steps.css sizes it). */
 const FACE = { position: 'absolute', top: 0, right: 0, width: 'var(--face-w, 56%)', height: '100%' } as const;
-
-/** Words and phrases by the end of the course, from the daily quotas. */
-function wordsBy(courseDays: number, minutes: number) {
-  if (courseDays === 60) return minutes === 60 ? 620 : 350;
-  return minutes === 60 ? 360 : 170;
-}
 
 export default function Welcome() {
   const { settings, updateSettings, reducedMotion } = useApp();
@@ -124,7 +119,7 @@ export default function Welcome() {
 
   const start = settings.onboarded || settings.primerDone ? settings.startDate : today;
   const courseEnd = addDays(start, courseDays - 1);
-  const words = wordsBy(courseDays, minutes);
+  const words = planWords(courseDays, minutes);
 
   const questions = [
     {
@@ -169,8 +164,8 @@ export default function Welcome() {
               value={minutes}
               onChange={setMinutes}
               options={[
-                { v: 60, title: <>60<small> min</small></>, sub: `About ${courseDays === 60 ? 620 : 360} words` },
-                { v: 30, title: <>30<small> min</small></>, sub: `About ${courseDays === 60 ? 350 : 170} words` },
+                { v: 60, title: <>60<small> min</small></>, sub: `About ${planWords(courseDays, 60)} words` },
+                { v: 30, title: <>30<small> min</small></>, sub: `About ${planWords(courseDays, 30)} words` },
               ]}
             />
           </div>
@@ -183,7 +178,7 @@ export default function Welcome() {
               onChange={setCourseDays}
               options={[
                 { v: 30, title: <>30<small> days</small></>, sub: 'Speak and get by' },
-                { v: 60, title: <>60<small> days</small></>, sub: 'About 620, and reading' },
+                { v: 60, title: <>60<small> days</small></>, sub: minutes === 60 ? `About ${planWords(60, 60)}, and reading` : `About ${planWords(60, 30)} words` },
               ]}
             />
           </div>

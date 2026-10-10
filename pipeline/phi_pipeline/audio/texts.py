@@ -261,11 +261,16 @@ def ensure_lines(course: dict) -> int:
     for it in course.get("items", []):
         ex = it.get("example")
         if ex and ex.get("thai"):
-            want[f"example.{it['id']}"] = {"thai": ex["thai"], "roman": ex.get("roman", "")}
+            want[f"example.{it['id']}"] = {"thai": ex["thai"], "roman": ex.get("roman", ""), "forms": ex.get("forms")}
     for p in course.get("patterns", []):
         for n, tiles in enumerate(p.get("examples") or []):
-            want[f"pattern.{p['id']}.{n}"] = {"thai": "".join(t["thai"] for t in tiles),
-                                               "roman": " ".join(t.get("roman", "") for t in tiles)}
+            w = {"thai": "".join(t["thai"] for t in tiles), "roman": " ".join(t.get("roman", "") for t in tiles), "forms": None}
+            # a tile with a man's and a woman's form (ผม / ฉัน) makes the whole example a two-form line
+            if any(t.get("forms") for t in tiles):
+                w["forms"] = {s: {"thai": "".join(((t.get("forms") or {}).get(s) or t)["thai"] for t in tiles),
+                                  "roman": " ".join(((t.get("forms") or {}).get(s) or t).get("roman", "") for t in tiles)}
+                              for s in ("m", "f")}
+            want[f"pattern.{p['id']}.{n}"] = w
     changed = 0
     for lid in [k for k in lines if (k.startswith("example.") or k.startswith("pattern.")) and k not in want]:
         del lines[lid]
@@ -273,8 +278,17 @@ def ensure_lines(course: dict) -> int:
     for lid, w in want.items():
         cur = lines.get(lid)
         if cur and cur.get("thai") == w["thai"]:
+            # same words: keep the audio, bring the forms in step (the man's form is the line's own text)
+            if (cur.get("forms") or None) != w["forms"]:
+                if w["forms"]:
+                    cur["forms"] = w["forms"]
+                else:
+                    cur.pop("forms", None)
+                changed += 1
             continue
         lines[lid] = {"thai": w["thai"], "roman": w["roman"], "speaker": "you", "audio": {}}
+        if w["forms"]:
+            lines[lid]["forms"] = w["forms"]
         changed += 1
     return changed
 

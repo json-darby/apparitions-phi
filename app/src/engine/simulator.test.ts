@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import initSqlJs from 'sql.js';
-import { formatSim, simulate } from './simulator';
+import { formatSim, simulate, syntheticContent } from './simulator';
 import { openStore } from '../db/store';
 
 describe('30-day simulation, 60-minute track', async () => {
@@ -46,10 +46,14 @@ describe('30-day simulation, 30-minute track', async () => {
       expect(d.actualMin).toBeLessThanOrEqual(d.budgetMin * 1.1);
     }
   });
-  // The plan targets about 200 at 30 minutes. At the answer times assumed in
-  // REVIEW_SECONDS the 30-minute budget fits about 170; the gap is reported, not hidden.
-  it('meets at least 160 words and phrases', () => {
-    expect(r.introducedByKind.item).toBeGreaterThanOrEqual(160);
+  // Half an hour teaches each day's lesson first: its letters and pattern, then as many of its words
+  // as the time holds. This synthetic course has a letter or two and a pattern every day, so all of
+  // them are met and the words take what is left. What the real course teaches on each plan (the
+  // numbers onboarding shows) is held in plans.test.ts.
+  it('meets every letter and pattern of the lessons, and the words the time holds', () => {
+    expect(r.introducedByKind.letter).toBe(syntheticContent(30).letters.length);
+    expect(r.introducedByKind.pattern).toBeGreaterThanOrEqual(30);
+    expect(r.introducedByKind.item).toBeGreaterThanOrEqual(115);
   });
 });
 

@@ -6,7 +6,7 @@ import { openBrowserStore } from '../db/browser';
 import { applyCourse, fetchCourse, loadContent, type Content } from '../content/repo';
 import { setCourseTasks } from '../content/street-seed';
 import type { Store } from '../db/store';
-import { AudioSound } from '../audio/AudioSound';
+import { AudioSound, dropOldAudioCaches } from '../audio/AudioSound';
 import { defaultSettings, type Settings } from '../core/settings';
 import { localDate } from '../core/dates';
 import { SoundLayer } from '../audio/SoundLayer';
@@ -34,6 +34,8 @@ export function App() {
       .then(async (store) => {
         // the generated course, if one is bundled; reseeds only when its version changed
         applyCourse(store, await fetchCourse());
+        // clips re-made in place are fetched afresh, not served from an older cache
+        void dropOldAudioCaches().catch(() => {});
         const content = loadContent(store);
         // a generated course's street and chapter scripts replace the seed ones: only its own are offered
         setCourseTasks(content.tasks, store.getMeta('content_source') === 'course' ? content.items : null);

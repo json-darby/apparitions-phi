@@ -45,7 +45,7 @@ export const SPINE: DaySpine[] = [
 
 /**
  * Days 31 to 60, for the 60-day course. It goes further rather than slower:
- * about 300 more words, every vowel form and tone mark written, reading
+ * more words (planWords has each plan's total), every vowel form and tone mark written, reading
  * running text, natural-speed listening and longer conversation. Days 1 to 30
  * are the same on both courses, so day 30 is a midpoint assessment here.
  */
@@ -122,13 +122,42 @@ export function dayBlocks(track: 30 | 60): Block[] {
 }
 
 /**
- * New material per day (upper limits; the load balancer may cut). Days 1 to 30
- * aim at about 360 words and 45 patterns at 60 minutes, about 200 and 30 at 30.
- * Days 31 to 60 add about 300 words, the vowel forms and tone marks, and 30 patterns.
+ * New material per day: ceilings, not targets. The planner fits what the day's time allows, today's
+ * lesson first (engine newCandidates). At an hour a day the ceiling clears a whole day's words (the
+ * course has up to 16 a day) with room to catch up; half an hour takes the day's core. What each plan
+ * really teaches is measured on the real course (engine/plans.test.ts) and shown at onboarding.
  */
 export function newQuota(track: 30 | 60, day = 1) {
   if (day > 30) return track === 60 ? { items: 10, letters: 2, patterns: 1 } : { items: 6, letters: 1, patterns: 1 };
-  return track === 60 ? { items: 12, letters: 3, patterns: 2 } : { items: 8, letters: 2, patterns: 1 };
+  return track === 60 ? { items: 20, letters: 3, patterns: 2 } : { items: 8, letters: 2, patterns: 1 };
+}
+
+/**
+ * The order new material is taught in, so the day's cards match the day's lesson. The full plan
+ * (60 days at an hour a day) has time for the whole alphabet and every pattern, so letters and
+ * patterns lead, then today's words, then words from earlier days that did not fit then. Every
+ * shorter plan teaches today's lesson first (its letters and patterns, then its words), then what is
+ * left from earlier days. Survival words lead within each group. The engine plans with it and the
+ * readiness forecast replays it.
+ */
+export function teachingCompare(day: number, full: boolean) {
+  type E = { kind: string; day: number; survival?: boolean };
+  const rank = (e: E) => (full ? (e.kind === 'item' ? 1 : 0) : (e.day === day ? 0 : 2) + (e.kind === 'item' ? 1 : 0));
+  const today = (e: E) => (e.day === day ? 0 : 1);
+  return (a: E, b: E) => rank(a) - rank(b) || today(a) - today(b) || a.day - b.day || (b.survival ? 1 : 0) - (a.survival ? 1 : 0);
+}
+
+/** The full plan: the whole course at an hour a day. */
+export const isFullPlan = (courseDays: number, minutes: number) => courseDays === 60 && minutes === 60;
+
+/**
+ * Words and phrases each plan really teaches by its last day: the real course run through the real
+ * planner by a learner who does every session (engine/plans.test.ts holds these to the course).
+ * The full plan also teaches the whole alphabet and every sentence pattern.
+ */
+export function planWords(courseDays: number, minutes: number): number {
+  if (courseDays === 60) return minutes === 60 ? 570 : 270;
+  return minutes === 60 ? 310 : 150;
 }
 
 export type DrillId = 'night-market' | 'heat-check' | 'last-orders' | 'ink-run' | 'tone-climb';

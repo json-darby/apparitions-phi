@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../../app/context';
 import { useDevice } from '../../app/device';
 import { Link, useRoute } from '../../app/router';
-import { pitchCurve } from '../../audio/sound';
+import { genderOfText, pitchCurve } from '../../audio/sound';
 import { PlayIcon } from '../../audio/SoundLayer';
 import { Apparition, FaceToWord, LetterFromDots } from '../../anim';
 import { bothForms } from '../../content/repo';
@@ -17,7 +17,7 @@ import { myVoiceFor } from '../../core/settings';
 import { useKeys } from '../../input/keys';
 import { FitText } from '../../ui/FitText';
 import { KeyHints, Label, RunRail, Screen, TopBar } from '../../ui/kit';
-import { VOICE_NAME, VOICE_ORDER, VOICE_WHO, describe, formsDiffer, isFemale, letterPlay, listenForm, patternThai, syllables, voiceFor, type Shown } from './parts/common';
+import { VOICE_NAME, VOICE_ORDER, VOICE_WHO, describe, formsDiffer, isFemale, letterPlay, listenForm, patternThai, speakerOf, syllables, voiceFor, type Shown } from './parts/common';
 import { GROUP_SIZE, landing, lessonSteps, otherSpeaker, teachingOrder, type Step } from './parts/lesson';
 import { QuickCheck } from './parts/QuickCheck';
 import { ToneRow } from './parts/ToneShape';
@@ -28,6 +28,28 @@ type Art = { mode: 'gather' | 'idle' | 'tear' | 'word'; who: string; pitch: numb
 
 /** A card opens with its word after this pause, so the meaning is read first. */
 const AUTOPLAY_MS = 500;
+
+/** The voices a card offers: all four, or only the two of one sex for words only that sex says (ครับ, ผม, ค่ะ...). */
+/** Who says a non-item card's words: from the words themselves, or from a two-form tile (ฉัน is a woman's I). */
+function cardSex(s: Shown): 'm' | 'f' | null {
+  if (s.letter) return null;
+  const g = genderOfText(s.thai);
+  if (g || !s.pattern) return g;
+  const t = (s.pattern.examples[0] ?? []).find((x) => x.forms);
+  return t?.forms ? (t.thai === t.forms.f.thai ? 'f' : 'm') : null;
+}
+
+function offeredVoices(s: Shown): VoiceId[] {
+  const sex = s.item ? speakerOf(s.item) : cardSex(s);
+  return sex ? VOICE_ORDER.filter((v) => isFemale(v) === (sex === 'f')) : VOICE_ORDER;
+}
+
+/** The voice that reads a card: the one asked for, moved to its counterpart of the other sex when only that sex says the words. */
+function cardVoice(s: Shown, asked: VoiceId): VoiceId {
+  if (s.item) return listenForm(s.item, asked).voice ?? asked;
+  const sex = cardSex(s);
+  return sex && isFemale(asked) !== (sex === 'f') ? (`${sex}${asked.slice(1)}` as VoiceId) : asked;
+}
 
 /** The learner's own voice for a card, or the other voice of that sex when only it has a clip. */
 function ownVoice(s: Shown, mine: VoiceId): VoiceId {
@@ -87,6 +109,7 @@ export default function NewItems() {
 
   const step: Step | undefined = steps[pos];
   const cur = step?.kind === 'card' ? shown[step.at] : undefined;
+  const offered = cur ? offeredVoices(cur) : VOICE_ORDER;
   const at = step?.kind === 'card' ? step.at : 0;
   const finished = pos >= steps.length;
 
@@ -123,13 +146,16 @@ export default function NewItems() {
     setPos(landing(steps, done, pos, pos + 1));
   };
 
-  const hear = async (voice: VoiceId, s: Shown | undefined = cur) => {
+  const hear = async (asked: VoiceId, s: Shown | undefined = cur) => {
     if (!s) return;
+    // the face and name follow the voice that actually speaks: words only a man (or a woman) says move to a matching voice
+    const voice = cardVoice(s, asked);
+    const label = VOICE_WHO[voice][0].toUpperCase() + VOICE_WHO[voice].slice(1);
     const req = s.item
-      ? listenForm(s.item, voice)
+      ? listenForm(s.item, asked)
       : s.letter
-        ? { ...letterPlay(s.letter), voice, speaker: VOICE_WHO[voice][0].toUpperCase() + VOICE_WHO[voice].slice(1) }
-        : { ref: s.ref, thai: s.thai, roman: s.roman, en: s.en, voice, speaker: VOICE_WHO[voice][0].toUpperCase() + VOICE_WHO[voice].slice(1) };
+        ? { ...letterPlay(s.letter), voice, speaker: label }
+        : { ref: s.ref, thai: s.thai, roman: s.roman, en: s.en, voice, speaker: label };
     const who = VOICE_WHO[voice];
     setArt((a) => ({ mode: 'tear', who, pitch: req.tones?.length ? pitchCurve(req.tones) : null, cue: a.cue + 1 }));
     await sound.play(req);
@@ -168,13 +194,13 @@ export default function NewItems() {
       return true;
     }
     if (a.type === 'play' && cur) {
-      const v = VOICE_ORDER[voiceAt % 4];
+      const v = offered[voiceAt % offered.length];
       setVoiceAt((n) => n + 1);
       void hear(v);
       return true;
     }
-    if (a.type === 'rate' && a.n <= 4 && cur) {
-      void hear(VOICE_ORDER[a.n - 1]);
+    if (a.type === 'rate' && a.n <= offered.length && cur) {
+      void hear(offered[a.n - 1]);
       return true;
     }
   }, !finished && !!cur);
@@ -317,12 +343,12 @@ export default function NewItems() {
 
   const voices = (
     <div className="stack gap-2">
-      <Label>Hear it · 4 voices</Label>
-      <div className="voices four">
-        {VOICE_ORDER.map((v, i) => (
+      <Label>{offered.length === 4 ? 'Hear it · 4 voices' : `Hear it · ${offered.length} ${isFemale(offered[0]) ? 'women' : 'men'}`}</Label>
+      <div className={offered.length === 4 ? 'voices four' : 'voices'}>
+        {offered.map((v) => (
           <button key={v} className="pill small" type="button" onClick={() => void hear(v)} aria-label={`Hear it, ${VOICE_NAME[v]}`}>
             <PlayIcon size={12} /> {isFemale(v) ? 'F' : 'M'}
-            {(i % 2) + 1}
+            {(VOICE_ORDER.indexOf(v) % 2) + 1}
           </button>
         ))}
       </div>
@@ -376,7 +402,7 @@ export default function NewItems() {
         </button>
       </div>
       {device === 'desktop' && (
-        <KeyHints hints={[['→', 'Next'], ['←', 'Previous'], ['Space', 'Hear it'], ['1–4', 'Voice']]} />
+        <KeyHints hints={[['→', 'Next'], ['←', 'Previous'], ['Space', 'Hear it'], [offered.length === 4 ? '1–4' : '1–2', 'Voice']]} />
       )}
     </div>
   );

@@ -6,6 +6,14 @@
 import type { Speed, Tone, VoiceId } from '../content/types';
 import type { PitchTrack } from './pitch';
 
+/** The speaker's sex when the words give it away: a polite particle anywhere, or "I" (ผม for a man, ดิฉัน for a woman). */
+export function genderOfText(thai: string): 'm' | 'f' | null {
+  const k = thai.replace(/[\s​‌‍ ]/g, '');
+  const f = /ค่ะ|ดิฉัน|(คะ|ค่า)$/.test(k);
+  const m = /ครับ|ผม/.test(k);
+  return f === m ? null : m ? 'm' : 'f';
+}
+
 export interface PlayRequest {
   ref?: string;
   thai: string;

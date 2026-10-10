@@ -46,7 +46,8 @@ export default defineConfig({
             urlPattern: /\/audio\/.+\.(?:ogg|opus|webm|m4a|mp3|wav)$/i,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'phi-audio',
+              // AUDIO_CACHE in src/audio/AudioSound.ts: bump both when shipped clips change in place
+              cacheName: 'phi-audio-2',
               expiration: { maxEntries: 40000 },
               cacheableResponse: { statuses: [0, 200] },
               rangeRequests: true,

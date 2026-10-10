@@ -14,13 +14,15 @@
 .today-top { height: 88px; }
 
 /* tablet and desktop: a bigger face and title */
-.today.wide .today-hero { min-height: 0; }
-.today.wide .today-art { width: 420px; height: 380px; right: 0; }
+.today.wide .today-hero { min-height: 300px; }
+/* the face ends just above the Next up card instead of running on under it */
+.today.wide .today-art { width: 420px; height: auto; bottom: -24px; right: 0; }
 .today.wide .today-head { gap: 12px; padding: 36px 0 0; }
 .today.wide .today-head .h-xl { font-size: 96px; line-height: 0.88; }
 .today.wide .today-focus { font-size: 17px; margin-top: 6px; max-width: 30ch; }
 .device-desktop .today .today-head { padding-top: 0; }
-.device-desktop .today .today-art { width: 440px; height: 400px; }
+.device-desktop .today .today-hero { min-height: 320px; }
+.device-desktop .today .today-art { width: 440px; }
 
 /* the Next up card */
 .nextup { display: flex; flex-direction: column; gap: 14px; margin: 0 0 22px; padding: 18px; min-width: 0; position: relative; z-index: 1; }

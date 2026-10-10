@@ -2,7 +2,7 @@
 // sound interface. Everything a screen needs comes from useApp().
 
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import type { Content } from '../content/repo';
+import { forIdentity, type Content } from '../content/repo';
 import type { Store } from '../db/store';
 import { Engine } from '../engine/engine';
 import { systemClock } from '../core/clock';
@@ -25,7 +25,7 @@ export interface AppState {
 
 const Ctx = createContext<AppState | null>(null);
 
-export function AppProvider({ store, content, sound, children }: { store: Store; content: Content; sound: SoundService; children: ReactNode }) {
+export function AppProvider({ store, content: course, sound, children }: { store: Store; content: Content; sound: SoundService; children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => {
     const s = { ...defaultSettings(localDate(Date.now())), ...store.get<Partial<Settings>>('settings', {}) };
     setFaceTint(s.faceColour);
@@ -35,6 +35,8 @@ export function AppProvider({ store, content, sound, children }: { store: Store;
   settingsRef.current = settings;
   // the face colour is read by the draw code, outside React
   useLayoutEffect(() => setFaceTint(settings.faceColour), [settings.faceColour]);
+  // examples and pattern tiles in the learner's own speech (ผม or ฉัน)
+  const content = useMemo(() => forIdentity(course, settings.identity), [course, settings.identity]);
   const engine = useMemo(() => new Engine(store, content, systemClock, () => settingsRef.current), [store, content]);
   const updateSettings = useCallback(
     (patch: Partial<Settings>) => {

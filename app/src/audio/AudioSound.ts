@@ -8,7 +8,7 @@
 // whose clip will not play, shows as a caption only: nothing is synthesised
 // and the device's own voice is never used.
 
-import { CaptionSound, captionMs, type PlayRequest, type Recording, type RecordReview, type RecordTarget, type SoundService, type SoundState, type SpeechScore } from './sound';
+import { CaptionSound, captionMs, genderOfText, type PlayRequest, type Recording, type RecordReview, type RecordTarget, type SoundService, type SoundState, type SpeechScore } from './sound';
 import type { Content, CourseLine } from '../content/repo';
 import type { Item, Speed, Tone, VoiceId } from '../content/types';
 import type { Settings } from '../core/settings';
@@ -28,6 +28,20 @@ interface AudioEntry {
   pitch: (number | null)[][] | null;
   /** normalised texts this clip set says */
   texts: Set<string>;
+  /** for a man's and a woman's version (ผมกินไก่ / ฉันกินไก่): which sex says each text, so each is read by its own voices */
+  formSex?: Map<string, 'm' | 'f'>;
+}
+
+type Forms = { m: { thai: string }; f: { thai: string } };
+/** Which sex says each of two differing forms, by normalised text (both with and without the polite ending). */
+function formSexOf(forms: Forms | undefined): Map<string, 'm' | 'f'> | undefined {
+  if (!forms || bare(forms.m.thai) === bare(forms.f.thai)) return undefined;
+  const m = new Map<string, 'm' | 'f'>();
+  for (const s of ['m', 'f'] as const) {
+    m.set(key(forms[s].thai), s);
+    m.set(bare(forms[s].thai), s);
+  }
+  return m;
 }
 
 const ROTATION: VoiceId[] = ['f1', 'm1', 'f2', 'm2'];
@@ -42,10 +56,10 @@ function key(thai: string): string {
 function bare(thai: string): string {
   return key(thai).replace(PARTICLE, '');
 }
-function genderOfText(thai: string): 'm' | 'f' | null {
-  const k = key(thai);
-  if (k.endsWith('ครับ')) return 'm';
-  if (/(ค่ะ|คะ|ค่า)$/.test(k)) return 'f';
+/** The sex of a recorded voice slot: f1, f2 and x1 are women, m1, m2 and x2 are men; cast voices are their own. */
+function sexOfVoice(v: string): 'm' | 'f' | null {
+  if (/^f\d$/.test(v) || v === 'x1') return 'f';
+  if (/^m\d$/.test(v) || v === 'x2') return 'm';
   return null;
 }
 
@@ -70,7 +84,7 @@ class AudioIndex {
       const o = extra?.get(`item:${it.id}`);
       const audio = o?.audio ?? it.media?.audio;
       if (!live(audio)) continue;
-      const e: AudioEntry = { audio: audio!, pitch: o?.pitch ?? it.media?.pitch ?? null, texts: itemTexts(it) };
+      const e: AudioEntry = { audio: audio!, pitch: o?.pitch ?? it.media?.pitch ?? null, texts: itemTexts(it), formSex: formSexOf(it.forms) };
       this.byRef.set(`item:${it.id}`, e);
       for (const t of e.texts) addText(t, e);
     }
@@ -88,11 +102,18 @@ class AudioIndex {
     const lines: CourseLine[] = [...content.lines.values()];
     for (const l of lines) {
       if (!live(l.audio)) continue;
-      const e: AudioEntry = { audio: l.audio, pitch: l.pitch ?? null, texts: new Set([key(l.thai), bare(l.thai)]) };
+      const e: AudioEntry = { audio: l.audio, pitch: l.pitch ?? null, texts: new Set([key(l.thai), bare(l.thai)]), formSex: formSexOf(l.forms) };
+      // a two-form line also answers to its woman's (or man's) words
+      if (l.forms) for (const f of [l.forms.m, l.forms.f]) { e.texts.add(key(f.thai)); e.texts.add(bare(f.thai)); }
       this.byRef.set(`line:${l.id}`, e);
       if (!this.byText.has(key(l.thai))) this.byText.set(key(l.thai), e);
     }
-    for (const l of lines) if (live(l.audio)) addText(bare(l.thai), this.byRef.get(`line:${l.id}`)!);
+    for (const l of lines) {
+      if (!live(l.audio)) continue;
+      const e = this.byRef.get(`line:${l.id}`)!;
+      addText(bare(l.thai), e);
+      if (l.forms) for (const f of [l.forms.m, l.forms.f]) { addText(key(f.thai), e); addText(bare(f.thai), e); }
+    }
     this.hasAudio = this.byRef.size > 0;
   }
 
@@ -392,9 +413,16 @@ export class AudioSound implements SoundService {
   /** Which clip to play: requested voice, then a rotation over the four voices, matching the speaker's sex when the text needs it. */
   pickClip(entry: AudioEntry, req: PlayRequest): { url: string; voice: string; speed: string; rate: number } | null {
     const speed: Speed = req.speed ?? this.cfg?.settings.speed ?? 'normal';
-    const g = genderOfText(req.thai);
-    const keys = Object.entries(entry.audio).filter(([, v]) => !!v) as [string, string][];
+    // the speaker's sex from the words, or from which of a two-form entry's versions is asked for
+    const g = genderOfText(req.thai) ?? entry.formSex?.get(key(req.thai)) ?? entry.formSex?.get(bare(req.thai)) ?? null;
+    let keys = Object.entries(entry.audio).filter(([, v]) => !!v) as [string, string][];
     if (!keys.length) return null;
+    // words that only a man (or only a woman) would say are never read by the other: drop those clips
+    // whenever a clip in the right voice exists, whatever voice the screen asked for
+    if (g) {
+      const fits = keys.filter(([k]) => sexOfVoice(parseKey(k).voice) !== (g === 'm' ? 'f' : 'm'));
+      if (fits.some(([k]) => sexOfVoice(parseKey(k).voice) === g)) keys = fits;
+    }
     let want: string | undefined = req.castVoice && entry.audio[`${req.castVoice}.normal`] ? req.castVoice : req.voice;
     if (!want) {
       const pool = ROTATION.filter((v) => !g || v[0] === g);
@@ -831,7 +859,18 @@ export function clipsPlayable(): boolean {
 
 // ---------------------------------------------------------------- offline warm-up
 
-export const AUDIO_CACHE = 'phi-audio';
+/**
+ * The offline audio cache (the service worker serves clips from it; vite.config.ts names the same
+ * cache). Its version moves whenever shipped clips change in place, same paths with new sound, so
+ * no device keeps playing the old ones.
+ */
+export const AUDIO_CACHE = 'phi-audio-2';
+
+/** Drop the audio caches of earlier versions. */
+export async function dropOldAudioCaches(): Promise<void> {
+  if (typeof caches === 'undefined') return;
+  for (const k of await caches.keys()) if (k.startsWith('phi-audio') && k !== AUDIO_CACHE) await caches.delete(k);
+}
 
 /** Every clip path the course references. */
 export function allAudioPaths(content: Content): string[] {

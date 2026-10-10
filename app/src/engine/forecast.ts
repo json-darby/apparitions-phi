@@ -10,7 +10,7 @@
 
 import { fsrs, forgetting_curve, type FSRS } from 'ts-fsrs';
 import type { ContentKind, Skill, Theme } from '../content/types';
-import { dayBlocks, newQuota } from '../path/pathway';
+import { dayBlocks, isFullPlan, newQuota, teachingCompare } from '../path/pathway';
 import { personalRetention } from './calibrate';
 import { CORE_THEMES, READY, SITUATIONS, type SituationId } from './situations';
 
@@ -147,6 +147,21 @@ function stageOf(e: SnapEntry): Skill[] {
 
 function isCore(t: Theme | null) {
   return !!t && CORE_THEMES.includes(t);
+}
+
+/** Entry indices in teaching order for a day, as the engine plans it; worked out once per snapshot. */
+const orders = new WeakMap<Snapshot, Map<string, number[]>>();
+function teachingOrder(snap: Snapshot, day: number, full: boolean): number[] {
+  let m = orders.get(snap);
+  if (!m) orders.set(snap, (m = new Map()));
+  const k = `${day}:${full}`;
+  let o = m.get(k);
+  if (!o) {
+    const cmp = teachingCompare(day, full);
+    o = snap.entries.map((_, i) => i).sort((a, b) => cmp(snap.entries[a], snap.entries[b]));
+    m.set(k, o);
+  }
+  return o;
 }
 
 export function buildScope(snap: Snapshot, scopeDay: number): Scope {
@@ -326,7 +341,7 @@ export function simulateFuture(
         const quota = newQuota(track, courseDay);
         const left: Record<ContentKind, number> = { item: quota.items, letter: quota.letters, pattern: quota.patterns };
         let spare = Math.max(0, newBlockSec + (capacitySec - dueSec) * 0.5);
-        for (let i = 0; i < snap.entries.length; i++) {
+        for (const i of teachingOrder(snap, courseDay, isFullPlan(snap.courseDays, track))) {
           const e = snap.entries[i];
           if (introduced.has(i) || e.day > courseDay || (e.adult && !snap.adult) || left[e.kind] <= 0) continue;
           if (lever.focus && !e.survival && !isCore(e.theme)) continue;
