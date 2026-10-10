@@ -43,7 +43,8 @@ export default defineConfig({
         // fills this same cache), then served offline.
         runtimeCaching: [
           {
-            urlPattern: /\/audio\/.+\.(?:ogg|opus|webm|m4a|mp3|wav)$/i,
+            // clip URLs carry the audio version (?v=N, AUDIO_VERSION in src/audio/AudioSound.ts)
+            urlPattern: /\/audio\/.+\.(?:ogg|opus|webm|m4a|mp3|wav)(?:\?.*)?$/i,
             handler: 'CacheFirst',
             options: {
               // AUDIO_CACHE in src/audio/AudioSound.ts: bump both when shipped clips change in place

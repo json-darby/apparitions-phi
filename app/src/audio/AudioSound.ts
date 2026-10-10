@@ -135,11 +135,17 @@ function parseKey(k: string): { voice: string; speed: string } {
   return i < 0 ? { voice: k, speed: 'normal' } : { voice: k.slice(0, i), speed: k.slice(i + 1) };
 }
 
-/** Resolve a stored path (relative to the app root) to a URL. */
+/**
+ * Resolve a stored clip path (relative to the app root) to a URL. The URL carries the audio version, so
+ * when clips are re-made in place no browser hands back the copy its HTTP cache kept (hosting lets
+ * browsers keep audio for a week).
+ */
 function urlOf(path: string): string {
   if (/^(blob:|data:|https?:)/.test(path)) return path;
   try {
-    return new URL(path.replace(/^\//, ''), document.baseURI).href;
+    const u = new URL(path.replace(/^\//, ''), document.baseURI);
+    u.searchParams.set('v', String(AUDIO_VERSION));
+    return u.href;
   } catch {
     return path;
   }
@@ -860,11 +866,12 @@ export function clipsPlayable(): boolean {
 // ---------------------------------------------------------------- offline warm-up
 
 /**
- * The offline audio cache (the service worker serves clips from it; vite.config.ts names the same
- * cache). Its version moves whenever shipped clips change in place, same paths with new sound, so
- * no device keeps playing the old ones.
+ * The audio version, in the offline cache's name (the service worker serves clips from it;
+ * vite.config.ts names the same cache) and in every clip URL. Move it whenever shipped clips change in
+ * place, same paths with new sound, so no device keeps playing the old ones.
  */
-export const AUDIO_CACHE = 'phi-audio-2';
+export const AUDIO_VERSION = 2;
+export const AUDIO_CACHE = `phi-audio-${AUDIO_VERSION}`;
 
 /** Drop the audio caches of earlier versions. */
 export async function dropOldAudioCaches(): Promise<void> {
