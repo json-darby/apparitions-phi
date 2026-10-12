@@ -198,6 +198,8 @@ export interface TapesState {
   cardFront?: 'en' | 'th' | 'audio';
   /** flashcard answers per day number */
   cardDays?: Record<string, number>;
+  /** false: flashcards skip the single words and keep the phrases */
+  cardWords?: boolean;
 }
 
 export const defaultState = (): TapesState => ({ heard: [], lastUnit: null, cards: {}, intro: {}, newPerDay: 10, who: null, hideRoman: false, tipsSeen: false });

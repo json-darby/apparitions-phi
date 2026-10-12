@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { trackPitch } from './pitch';
-import { analyseTones, classifyTone, combineScores, dtwDistance, dtwSimilarity, fillContour, rangeFromMid, referenceContours, segmentSyllables, type SpeakerRange } from './score';
+import { analyseTones, classifyTone, combineScores, dtwDistance, dtwSimilarity, fillContour, rangeFromMid, referenceContours, segmentSyllables, speakerContours, type SpeakerRange } from './score';
 import { mulberry32, synthUtterance, thaiToneContour, type SynthSyllable } from './synth';
 import { TONES, type Tone } from '../content/types';
 import { toneShape } from './sound';
@@ -189,5 +189,50 @@ describe('syllable segmentation', () => {
     const { track } = utter(sylls, rangeFromMid(150), rng); // 4 st higher than believed
     const a = analyseTones(track, ['mid', 'falling', 'high'], { range: sp })!;
     expect(a.syllables.map((s) => s.heard)).toEqual(['mid', 'falling', 'high']);
+  });
+});
+
+describe("the course speaker's own clip as the reference", () => {
+  it('measures a recorded speaker into per-syllable contours that keep their tones', () => {
+    const rng = mulberry32(77);
+    const tones: Tone[] = ['falling', 'high', 'rising'];
+    const sylls: SynthSyllable[] = tones.map((t) => ({ tone: t, dur: 0.24, contour: thaiToneContour(t, rng) }));
+    const { track } = utter(sylls, rangeFromMid(200, 10), rng);
+    const ref = speakerContours(track, 3);
+    expect(ref).not.toBeNull();
+    ref!.forEach((c, i) => expect(classifyTone(c as number[]).tone).toBe(tones[i]));
+  });
+
+  it("scores a learner who copies the speaker high, and wrong tones low, against that reference", () => {
+    const rng = mulberry32(78);
+    const tones: Tone[] = ['low', 'falling', 'mid'];
+    const mk = (ts: Tone[], mid: number) => utter(ts.map((t) => ({ tone: t, dur: 0.24, contour: thaiToneContour(t, rng) })), rangeFromMid(mid, 10), rng).track;
+    const reference = speakerContours(mk(tones, 210), 3);
+    expect(reference).not.toBeNull();
+    const learner = rangeFromMid(118, 10);
+    const right = analyseTones(mk(tones, 118), tones, { reference, range: learner, identity: 'm' });
+    const wrong = analyseTones(mk(['high', 'rising', 'low'], 118), tones, { reference, range: learner, identity: 'm' });
+    expect(right!.tone).toBeGreaterThan(0.6);
+    expect(right!.tone).toBeGreaterThan(wrong!.tone + 0.25);
+  });
+
+  it('gives up (textbook shapes instead) when a clip will not split into the syllables', () => {
+    const rng = mulberry32(79);
+    const { track } = utter([{ tone: 'mid', dur: 0.3, contour: thaiToneContour('mid', rng) }], rangeFromMid(200, 10), rng);
+    expect(speakerContours(track, 0)).toBeNull();
+    expect(speakerContours({ ...track, f0: new Float32Array(track.f0.length) }, 2)).toBeNull();
+  });
+
+  it("keeps the speaker's shape only where it is plainly the syllable's own tone", () => {
+    const rng = mulberry32(80);
+    const said: Tone[] = ['falling', 'high', 'low'];
+    const { track } = utter(said.map((t) => ({ tone: t, dur: 0.24, contour: thaiToneContour(t, rng) })), rangeFromMid(200, 10), rng);
+    // the text says the last one is rising: that syllable falls back, the rest are kept
+    const ref = speakerContours(track, 3, ['falling', 'high', 'rising']);
+    expect(ref![0].length).toBe(16);
+    expect(ref![1].length).toBe(16);
+    expect(ref![2]).toEqual([]);
+    // mostly wrong: the whole clip is set aside
+    expect(speakerContours(track, 3, ['rising', 'low', 'rising'])).toBeNull();
   });
 });

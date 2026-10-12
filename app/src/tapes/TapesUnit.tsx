@@ -138,7 +138,7 @@ export function PhraseRow({ id, it, clip, open, onOpen, hideRoman }: { id?: stri
         </button>
         <div className="tp-acts">
           <PlayButton clip={clip} thai={thaiJoined(v)} />
-          <SayButton v={v} en={meaning} />
+          <SayButton v={v} en={meaning} clip={clip} />
         </div>
       </div>
       {open && (

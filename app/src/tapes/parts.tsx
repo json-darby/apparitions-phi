@@ -6,6 +6,9 @@ import { useApp } from '../app/context';
 import { cachedPack, clipUrl, loadPack, loadState, saveState, type TapesState } from './db';
 import { TONE_COLOURS, TONE_NAMES, romanOf, sylls, thaiOf, type Pack, type Syl, type ToneDigit, type Variant } from './pack';
 import { PlayIcon, MicIcon } from '../audio/SoundLayer';
+import { trackPitch } from '../audio/pitch';
+import { speakerContours } from '../audio/score';
+import type { Tone } from '../content/types';
 
 // ---- data ----
 
@@ -200,12 +203,48 @@ export function PlayButton({ clip, thai, label = 'Play the speaker', big }: { cl
   );
 }
 
-/** Say it yourself: the app's own record sheet draws your pitch line over the tones. */
-export function SayButton({ v, en, big }: { v: Variant; en?: string; big?: boolean }) {
+// the speaker's pitch line per clip, measured once
+const refCache = new Map<string, Promise<(number | null)[][] | null>>();
+
+/** The course speaker's own contour per syllable, from their clip; null if it can't be measured. */
+export function clipReference(key: string, tones: Tone[]): Promise<(number | null)[][] | null> {
+  const k = `${key}/${tones.join(',')}`;
+  let p = refCache.get(k);
+  if (!p) {
+    p = (async () => {
+      try {
+        const url = await clipUrl(key);
+        if (!url) return null;
+        const buf = await (await fetch(url)).arrayBuffer();
+        const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new Ctx();
+        try {
+          const audio = await ctx.decodeAudioData(buf);
+          return speakerContours(trackPitch(audio.getChannelData(0), audio.sampleRate), tones.length, tones);
+        } finally {
+          void ctx.close();
+        }
+      } catch {
+        return null;
+      }
+    })();
+    refCache.set(k, p);
+  }
+  return p;
+}
+
+/**
+ * Say it yourself: the app's own record sheet draws your pitch line over the
+ * tones. With the speaker's clip, your tones are measured against how that
+ * speaker said it; without one, against the textbook tone shapes.
+ */
+export function SayButton({ v, en, big, clip }: { v: Variant; en?: string; big?: boolean; clip?: string | null }) {
   const { sound } = useApp();
   const go = async () => {
     stopTapes();
-    const target = { thai: thaiOf(v).replace(/ /g, ''), roman: romanOf(v), en, tones: sylls(v).map((s) => TONE_NAMES[s.t]) };
+    const tones = sylls(v).map((s) => TONE_NAMES[s.t]);
+    const reference = clip ? await clipReference(clip, tones) : null;
+    const target = { thai: thaiOf(v).replace(/ /g, ''), roman: romanOf(v), en, tones, reference };
     const rec = await sound.record(target);
     if (rec) await sound.score(rec, target);
   };

@@ -38,6 +38,8 @@ export interface PlayRequest {
 
 export interface RecordTarget {
   ref?: string;
+  /** the reference contour per syllable (16 points), when the screen measured the speaker's own clip */
+  reference?: (number | null)[][] | null;
   thai: string;
   roman?: string;
   en?: string;

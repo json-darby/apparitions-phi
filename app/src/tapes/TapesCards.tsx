@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 import { Link } from '../app/router';
 import { useApp } from '../app/context';
 import { useKeys } from '../input/keys';
-import { Label, ListHead, Meter, Screen, Seg, TopBar } from '../ui/kit';
+import { Label, ListHead, Meter, Screen, Seg, Sheet, TopBar } from '../ui/kit';
 import type { Card, TapesState } from './db';
 import { GRADES, SITTING, answer, comeBack, streak, hardest, nextPick, progress, schedule, startSession, type FlashGrade, type FlashPick, type Session, type Side } from './flash';
 import { LoadPack } from './Tapes';
@@ -46,14 +46,25 @@ export function CardsLink({ to = '/tapes/cards', label = 'Cards' }: { to?: strin
   );
 }
 
+/**
+ * The cards you get from a unit: its lines, minus the other speaker's versions
+ * when you've chosen to say it as a man or a woman (the same Speaker setting
+ * as the unit pages), and minus the single words if you've turned those off.
+ */
+export function cardsOf(pack: Pack, units: number[], s: TapesState): Deck[] {
+  const who = s.who ?? 'all';
+  const words = s.cardWords !== false;
+  return deckOf(pack, units).filter((c) => (who === 'all' || c.item.who === '-' || c.item.who === who) && (words || c.item.variants[0].length > 1));
+}
+
 const isDue = (c: Deck, s: TapesState, today: number) => !!s.cards[c.id] && s.cards[c.id].due <= today;
-const allDue = (pack: Pack, s: TapesState, today: number) => deckOf(pack, unitNumbers(pack)).filter((c) => isDue(c, s, today));
+const allDue = (pack: Pack, s: TapesState, today: number) => cardsOf(pack, unitNumbers(pack), s).filter((c) => isDue(c, s, today));
 
 /** One sitting: what is due first (the least known first), then the unit's next new phrases, up to SITTING cards. */
 function sittingFor(pack: Pack, which: string, s: TapesState, today: number): Deck[] {
   const ease = (c: Deck) => s.cards[c.id]?.ease ?? 2.5;
   if (which === 'due') return allDue(pack, s, today).sort((a, b) => ease(a) - ease(b)).slice(0, SITTING);
-  const all = deckOf(pack, [Number(which)]);
+  const all = cardsOf(pack, [Number(which)], s);
   const due = all.filter((c) => isDue(c, s, today)).sort((a, b) => ease(a) - ease(b));
   const fresh = all.filter((c) => !s.cards[c.id]);
   return [...due, ...fresh].slice(0, SITTING);
@@ -61,7 +72,7 @@ function sittingFor(pack: Pack, which: string, s: TapesState, today: number): De
 
 /** Nothing due: a practice round on the unit's least-known phrases, not scheduled. */
 function practiceFor(pack: Pack, which: string, s: TapesState): Deck[] {
-  const all = deckOf(pack, [Number(which)]);
+  const all = cardsOf(pack, [Number(which)], s);
   return [...all].sort((a, b) => (s.cards[a.id]?.ease ?? 2.5) - (s.cards[b.id]?.ease ?? 2.5)).slice(0, SITTING);
 }
 
@@ -72,8 +83,18 @@ export default function TapesCards({ params }: { params: Record<string, string> 
 
 // ---- choosing a deck ----
 
+/** Forget the flashcard progress of some units (or all): the cards start again as new. Units heard stay ticked. */
+function resetCards(update: ReturnType<typeof useTapes>['update'], units: number[] | 'all') {
+  update((st) => {
+    if (units === 'all') return { cards: {} };
+    const pre = units.map((n) => `u${n}.`);
+    return { cards: Object.fromEntries(Object.entries(st.cards).filter(([id]) => !pre.some((p) => id.startsWith(p)))) };
+  });
+}
+
 function CardsHome() {
   const { pack, state, update } = useTapes();
+  const [ask, setAsk] = useState<number | 'all' | null>(null);
   const top = <TopBar mid="Flashcards" parent="/tapes" />;
   if (pack === undefined || !state) return <Screen top={top} narrow><p className="small">Opening…</p></Screen>;
   if (pack === null) return <Screen top={top} narrow className="tapes"><LoadPack /></Screen>;
@@ -82,6 +103,9 @@ function CardsHome() {
   const due = allDue(pack, state, today).length;
   const heard = new Set(state.heard);
   const side = state.cardFront ?? 'en';
+  const who = state.who ?? 'all';
+  const words = state.cardWords !== false;
+  const metAll = Object.keys(state.cards).length;
   const todayN = state.cardDays?.[String(today)] ?? 0;
   const run = streak(state.cardDays, today);
 
@@ -109,28 +133,63 @@ function CardsHome() {
         <span>Front of the card</span>
         <Seg label="Front of the card" value={side} onChange={(v) => update({ cardFront: v })} options={SIDES} />
       </div>
+      <div className="row line tp-fc-side" style={{ cursor: 'default' }}>
+        <span className="stack gap-1"><span>Say it as</span><span className="small">Most sentences come twice, a man's and a woman's way</span></span>
+        <Seg label="Say it as" value={who} onChange={(v) => update({ who: v })} options={[{ v: 'all', label: 'Both' }, { v: 'm', label: 'Man' }, { v: 'f', label: 'Woman' }]} />
+      </div>
+      <div className="row line tp-fc-side" style={{ cursor: 'default' }}>
+        <span className="stack gap-1"><span>Single words</span><span className="small">The pieces the course builds phrases from</span></span>
+        <Seg label="Single words" value={words ? 'on' : 'off'} onChange={(v) => update({ cardWords: v === 'on' })} options={[{ v: 'on', label: 'Include' }, { v: 'off', label: 'Skip' }]} />
+      </div>
 
       <section style={{ marginTop: 18 }}>
         <ListHead title="Units" note={`${SITTING} cards a sitting`} />
         <div className="rows-end">
           {nums.map((n) => {
-            const deck = deckOf(pack, [n]);
+            const deck = cardsOf(pack, [n], state);
             if (!deck.length) return null;
             const started = deck.filter((c) => state.cards[c.id]).length;
             const dueN = deck.filter((c) => state.cards[c.id] && state.cards[c.id].due <= today).length;
             const state_ = dueN > 0 ? 'due' : started === 0 ? 'new' : started < deck.length ? 'part' : 'done';
             return (
-              <Link key={n} to={`/tapes/cards/${n}`} className={`tp-unit tp-fc-unit ${heard.has(n) ? 'is-done' : ''}`} style={{ textDecoration: 'none' }}>
-                <span className="tp-unit-main">
+              <div key={n} className={`tp-unit tp-fc-unit ${heard.has(n) ? 'is-done' : ''}`}>
+                <Link to={`/tapes/cards/${n}`} className="tp-unit-main" style={{ textDecoration: 'none' }}>
                   <span className="tp-unit-n num">{n}</span>
                   <span className="tp-unit-t">{unitTitle(pack, n)}</span>
                   <span className={`small num tp-fc-state ${state_}`}>{started ? `${started}/${deck.length}` : `${deck.length} cards`}{dueN ? ` · ${dueN} due` : state_ === 'done' ? ' · ✓' : ''}</span>
-                </span>
-              </Link>
+                </Link>
+                {started > 0 && (
+                  <button type="button" className="tp-fc-reset" aria-label={`Reset unit ${n}'s flashcards`} title="Reset this unit's cards" onClick={() => setAsk(n)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" /><path d="M4.5 4.5v4h4" /></svg>
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
+        {metAll > 0 && (
+          <button type="button" className="pill text small" style={{ marginTop: 16 }} onClick={() => setAsk('all')}>Reset all flashcards</button>
+        )}
       </section>
+
+      {ask != null && (
+        <Sheet label={ask === 'all' ? 'Reset all flashcards?' : `Reset unit ${ask}'s flashcards?`} onClose={() => setAsk(null)}>
+          <div className="stack gap-4">
+            <h2 className="h-m" style={{ margin: 0 }}>{ask === 'all' ? 'Reset all flashcards?' : `Reset unit ${ask}?`}</h2>
+            <p className="body" style={{ margin: 0 }}>
+              {ask === 'all'
+                ? `All ${metAll} cards you've met start again as new, in every unit. Your ticks for units heard stay.`
+                : `Unit ${ask}'s cards start again as new. Other units and your ticks for units heard stay.`}
+            </p>
+            <div className="hrow wrap" style={{ gap: 10 }}>
+              <button type="button" className="pill" onClick={() => setAsk(null)}>Cancel</button>
+              <button type="button" className="pill solid grow" onClick={() => { resetCards(update, ask === 'all' ? 'all' : [ask]); setAsk(null); }}>
+                {ask === 'all' ? 'Reset all' : `Reset unit ${ask}`}
+              </button>
+            </div>
+          </div>
+        </Sheet>
+      )}
     </Screen>
   );
 }
@@ -355,7 +414,7 @@ function CardSession({ which }: { which: string }) {
     const carried = Object.values(s.entries).filter((e) => e.carried).length;
     const easyFirst = Object.values(s.entries).filter((e) => (e.first ?? 0) >= 4).length;
     // what is left of this unit (or of the due pile) for another sitting
-    const more = practice ? 0 : which === 'due' ? allDue(pack, state, dayNumber()).length : deckOf(pack, [Number(which)]).filter((c) => !state.cards[c.id] || isDue(c, state, dayNumber())).length;
+    const more = practice ? 0 : which === 'due' ? allDue(pack, state, dayNumber()).length : cardsOf(pack, [Number(which)], state).filter((c) => !state.cards[c.id] || isDue(c, state, dayNumber())).length;
     return (
       <Screen top={top} narrow className="tapes">
         <div className="page-head">
@@ -462,7 +521,7 @@ function CardSession({ which }: { which: string }) {
                 </div>
                 <div className="tp-fc-actions" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                   <PlayButton clip={clip} thai={thaiJoined(v)} big />
-                  <SayButton v={v} en={plainMeaning(it.mean)} big />
+                  <SayButton v={v} en={plainMeaning(it.mean)} clip={clip} big />
                 </div>
                 {(it.words.length > 1 || it.note) && (
                   <div className="tp-fc-detail">

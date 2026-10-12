@@ -203,6 +203,35 @@ export function fillContour(c: (number | null)[], m = POINTS): number[] | null {
   return resampleSeries(inner, m);
 }
 
+/**
+ * A recorded speaker's own contour per syllable, measured the way a learner's
+ * is (same segmentation, 16 points), on the speaker's own range centred on
+ * their median pitch. Used as the reference when there is no pipeline
+ * media.pitch, so a learner is compared with how that speaker actually said
+ * it. With `tones`, a syllable whose measured shape is not plainly its own
+ * tone falls back to the textbook shape. Null when the clip will not split
+ * into `n` voiced syllables, or most of it disagrees with the tones.
+ */
+export function speakerContours(track: PitchTrack, n: number, tones?: Tone[]): (number | null)[][] | null {
+  if (n <= 0) return null;
+  const segs = segmentSyllables(track, n);
+  if (segs.length !== n) return null;
+  const mid = medianF0(track);
+  if (!mid) return null;
+  const range = rangeFromMid(mid);
+  let out = segs.map((g) => syllableContour(track, g, range));
+  if (tones) {
+    // natural speech blurs tones and syllable edges: keep the speaker's shape
+    // only where it plainly is the tone that syllable should carry
+    const agree = out.map((c, i) => !!c && classifyTone(c).tone === tones[i]);
+    if (agree.filter(Boolean).length < Math.ceil(n / 2)) return null; // the split is probably off
+    out = out.map((c, i) => (agree[i] ? c : null));
+  }
+  // too little measured to be a fair reference: use the textbook shapes instead
+  // (an unmeasured syllable is left empty, which falls back to its textbook shape)
+  return out.filter(Boolean).length >= Math.ceil(n / 2) ? out.map((c) => c ?? []) : null;
+}
+
 /** The learner's 16-point normalised contour for one syllable, or null if barely voiced. */
 export function syllableContour(track: PitchTrack, seg: Seg, range: SpeakerRange, m = POINTS): number[] | null {
   const vals: number[] = [];

@@ -661,6 +661,7 @@ export class AudioSound implements SoundService {
   }
 
   private referenceFor(target: RecordTarget): (number | null)[][] | null {
+    if (target.reference) return target.reference;
     const e = this.audioIndex()?.resolve(target);
     return e?.pitch ?? null;
   }

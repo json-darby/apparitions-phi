@@ -256,3 +256,8 @@ a.tp-item-main:hover .tp-th, button.tp-item-main:hover .tp-th { color: #fff; }
 .tp-fc-card.pulling::before, .tp-fc-card.pulling::after { display: none; }
 .tp-fc-card { margin-bottom: 22px; }
 .tp-fc-g.g1 b { font-size: 20px; }
+
+.tp-fc-unit { display: flex; align-items: center; gap: 4px; }
+.tp-fc-unit .tp-unit-main { flex: 1; min-width: 0; }
+.tp-fc-reset { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--mut); cursor: pointer; }
+.tp-fc-reset:hover { color: var(--fg); background: rgba(255, 255, 255, 0.06); }

@@ -12,8 +12,8 @@ import { PackError, plainMeaning, searchPack, unitNumbers, unitTitle, type Pack 
 import { Phrase, PlayButton, ToneKey, WHO_LABEL, tapesChanged, useTapes } from './parts';
 import { LettersTab, TipsTab, TonesTab } from './Guide';
 import { UnitGrid } from './UnitJump';
-import { deckOf, dayNumber } from './review';
-import { CardsLink } from './TapesCards';
+import { dayNumber } from './review';
+import { CardsLink, cardsOf } from './TapesCards';
 import './tapes.css';
 
 type Tab = 'units' | 'review' | 'reading' | 'letters' | 'tones' | 'tips';
@@ -165,7 +165,7 @@ function CardsTab({ pack }: { pack: Pack }) {
   const { state } = useTapes();
   if (!state) return null;
   const today = dayNumber();
-  const all = deckOf(pack, unitNumbers(pack));
+  const all = cardsOf(pack, unitNumbers(pack), state);
   const started = all.filter((c) => state.cards[c.id]).length;
   const due = all.filter((c) => state.cards[c.id] && state.cards[c.id].due <= today).length;
   return (

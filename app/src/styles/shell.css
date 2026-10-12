@@ -218,7 +218,8 @@ a.logo { display: inline-flex; align-items: center; min-height: 44px; }
 .lib-tabs::-webkit-scrollbar { display: none; }
 @media (max-width: 699px) {
   .lib-tabs { overflow: visible; margin: 0; padding: 0 0 4px; }
-  .lib-tabs .seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; overflow: visible; }
+  /* two rows: corners follow the buttons inside (their radius plus the frame's padding), so nothing pokes through */
+  .lib-tabs .seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; overflow: visible; border-radius: 22px; row-gap: 3px; }
   .lib-tabs .seg button { padding: 8px 2px; min-width: 0; }
 }
 
