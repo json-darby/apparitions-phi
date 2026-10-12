@@ -1,5 +1,5 @@
 // The Tapes: a companion for an audio course, for a quick look on a break.
-// Units (notes and phrases with the speakers' clips), a short review, the
+// Units (notes and phrases with the speakers' clips), flashcards, the
 // reading lessons, the letters, the tone rules and tips. The course material
 // comes from the learner's own study file, loaded once per device.
 
@@ -12,13 +12,14 @@ import { PackError, plainMeaning, searchPack, unitNumbers, unitTitle, type Pack 
 import { Phrase, PlayButton, ToneKey, WHO_LABEL, tapesChanged, useTapes } from './parts';
 import { LettersTab, TipsTab, TonesTab } from './Guide';
 import { UnitGrid } from './UnitJump';
-import { dueCount } from './review';
+import { deckOf, dayNumber } from './review';
+import { CardsLink } from './TapesCards';
 import './tapes.css';
 
 type Tab = 'units' | 'review' | 'reading' | 'letters' | 'tones' | 'tips';
 const TABS: { v: Tab; label: string }[] = [
   { v: 'units', label: 'Units' },
-  { v: 'review', label: 'Review' },
+  { v: 'review', label: 'Cards' },
   { v: 'reading', label: 'Reading' },
   { v: 'letters', label: 'Letters' },
   { v: 'tones', label: 'Tones' },
@@ -41,7 +42,7 @@ export default function Tapes() {
   const found = useMemo(() => (pack && q.trim().length > 1 ? searchPack(pack, q) : []), [pack, q]);
 
   return (
-    <Screen top={<TopBar mid="The Tapes" parent="/extras" />} narrow className="tapes">
+    <Screen top={<TopBar mid="The Tapes" parent="/extras" right={pack ? <CardsLink /> : undefined} />} narrow className="tapes">
       <div className="page-head" style={{ marginBottom: 16 }}>
         <Label>Extras · P******* companion{pack ? ` · ${nums.length} units` : ''}</Label>
         <h1 className="h-page">The Tapes</h1>
@@ -75,7 +76,7 @@ export default function Tapes() {
               <Meter value={nums.length ? heard.size / nums.length : 0} colour="var(--blue)" />
               <div className="hrow wrap" style={{ gap: 8 }}>
                 <Link to={`/tapes/unit/${resume}`} className="pill solid" style={{ textDecoration: 'none' }}>Open unit {resume}</Link>
-                <Link to="/tapes/review" className="pill" style={{ textDecoration: 'none' }}>Quick review</Link>
+                <Link to={`/tapes/cards/${resume}`} className="pill" style={{ textDecoration: 'none' }}>Unit {resume} cards</Link>
               </div>
             </div>
           )}
@@ -91,7 +92,7 @@ export default function Tapes() {
               {found.length === 0 && <p className="small">Nothing yet. Try the English, the Thai, or the sound without tone marks (kao jai).</p>}
               <div className="rows-end">
                 {found.map(({ n, i, item }) => (
-                  <div key={`${n}.${i}`} className="tp-item">
+                  <div key={`${n}.${i}`} className="tp-item tp-item-top">
                     <Link to={`/tapes/unit/${n}?at=${i}`} className="tp-item-main" style={{ textDecoration: 'none' }}>
                       <Phrase v={item.variants[0]} hideRoman={state?.hideRoman} lines={false} />
                       <span className="small">{plainMeaning(item.mean)}{item.who !== '-' && <span className={`tp-who ${item.who}`}>{WHO_LABEL[item.who]}</span>} · unit {n}</span>
@@ -135,7 +136,7 @@ export default function Tapes() {
         </section>
       )}
 
-      {pack && tab === 'review' && state && <ReviewTab pack={pack} heard={[...heard]} newPerDay={state.newPerDay} setNew={(v) => update({ newPerDay: v })} />}
+      {pack && tab === 'review' && state && <CardsTab pack={pack} />}
 
       {pack && tab === 'reading' && (
         <section style={{ marginTop: 18 }}>
@@ -160,29 +161,26 @@ export default function Tapes() {
   );
 }
 
-function ReviewTab({ pack, heard, newPerDay, setNew }: { pack: Pack; heard: number[]; newPerDay: number; setNew: (v: number) => void }) {
+function CardsTab({ pack }: { pack: Pack }) {
   const { state } = useTapes();
-  const counts = state ? dueCount(pack, state, heard) : null;
+  if (!state) return null;
+  const today = dayNumber();
+  const all = deckOf(pack, unitNumbers(pack));
+  const started = all.filter((c) => state.cards[c.id]).length;
+  const due = all.filter((c) => state.cards[c.id] && state.cards[c.id].due <= today).length;
   return (
     <section style={{ marginTop: 18 }}>
       <p className="body" style={{ marginTop: 0 }}>
-        A few cards at a time, from the units you've marked heard. You see the English, say the Thai out loud, then check against the speaker.
+        Flashcards for each unit: the English on the front, say the Thai out loud, turn it over to check against the speaker. Hard ones come back more often in the same sitting; each card then returns on a later day, when it's due.
       </p>
-      {heard.length === 0 ? (
-        <p className="small">Mark a unit heard (the circle on the Units list) and its phrases join the review.</p>
-      ) : (
-        <>
-          <div className="bigstats" style={{ margin: '14px 0' }}>
-            <div className="bigstat"><span className="label">Due</span><span className="h-m num">{counts?.due ?? 0}</span></div>
-            <div className="bigstat"><span className="label">New today</span><span className="h-m num">{counts?.fresh ?? 0}</span></div>
-            <div className="bigstat"><span className="label">Started</span><span className="h-m num">{counts?.started ?? 0}</span></div>
-          </div>
-          <Link to="/tapes/review" className="pill solid big wide" style={{ textDecoration: 'none' }}>Start review</Link>
-        </>
-      )}
-      <div className="row line" style={{ marginTop: 18, cursor: 'default' }}>
-        <span>New cards a day</span>
-        <Seg label="New cards a day" value={newPerDay} onChange={setNew} options={[5, 10, 20].map((v) => ({ v, label: String(v) }))} />
+      <div className="bigstats" style={{ margin: '14px 0' }}>
+        <div className="bigstat"><span className="label">Due today</span><span className="h-m num">{due}</span></div>
+        <div className="bigstat"><span className="label">Cards met</span><span className="h-m num">{started}</span></div>
+        <div className="bigstat"><span className="label">In all</span><span className="h-m num">{all.length}</span></div>
+      </div>
+      <div className="stack gap-2">
+        {due > 0 && <Link to="/tapes/cards/due" className="pill solid big wide" style={{ textDecoration: 'none' }}>Due today · {due}</Link>}
+        <Link to="/tapes/cards" className={`pill big wide ${due > 0 ? '' : 'solid'}`} style={{ textDecoration: 'none' }}>Choose a unit</Link>
       </div>
     </section>
   );

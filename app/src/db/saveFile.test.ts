@@ -45,6 +45,8 @@ describe('save files', () => {
     store.appendLog({ at: 1759500000000, ref: 'item:hello', skill: 'hear', source: 'review', rating: 4, grade: 3, correct: 1, ms: 2100, counted: 1, data: '{"note":"line\nbreak"}' });
     store.addActivity('2026-10-04', 25 * 60_000, 'new');
     store.set('live_server', { url: 'https://example.run.app', code: 'secret-code-123' });
+    // a copy of The Tapes' marks rides along
+    store.set('tapes', { heard: [1, 2, 3], lastUnit: 3, cards: {}, intro: {}, newPerDay: 10, who: null, hideRoman: false, tipsSeen: true });
     const db = new SQL.Database(store.exportBytes());
     const text = saveText(db, new Date(2026, 9, 4, 21, 14).getTime());
     expect(text.startsWith('APPARITIONS: PHI · SAVE FILE')).toBe(true);

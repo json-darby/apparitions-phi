@@ -56,6 +56,8 @@ export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'n
   { path: '/tapes', screen: L(() => import('../tapes/Tapes')), extra: true },
   { path: '/tapes/unit/:n', screen: L(() => import('../tapes/TapesUnit')), extra: true },
   { path: '/tapes/review', screen: L(() => import('../tapes/TapesReview')), extra: true },
+  { path: '/tapes/cards', screen: L(() => import('../tapes/TapesCards')), extra: true },
+  { path: '/tapes/cards/:n', screen: L(() => import('../tapes/TapesCards')), extra: true },
   { path: '/tapes/reading/:n', screen: L(() => import('../tapes/TapesReading')), extra: true },
   { path: '/tapes/tone-drill', screen: L(() => import('../tapes/TapesReading').then((m) => ({ default: m.ToneDrill }))), extra: true },
 

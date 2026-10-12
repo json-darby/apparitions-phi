@@ -194,6 +194,10 @@ export interface TapesState {
   who: 'all' | 'm' | 'f' | null;
   hideRoman: boolean;
   tipsSeen: boolean;
+  /** what the flashcards show first */
+  cardFront?: 'en' | 'th' | 'audio';
+  /** flashcard answers per day number */
+  cardDays?: Record<string, number>;
 }
 
 export const defaultState = (): TapesState => ({ heard: [], lastUnit: null, cards: {}, intro: {}, newPerDay: 10, who: null, hideRoman: false, tipsSeen: false });

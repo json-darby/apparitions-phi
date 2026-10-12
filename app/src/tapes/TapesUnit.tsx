@@ -6,6 +6,7 @@ import { Link, navigate, useRoute } from '../app/router';
 import { Label, ListHead, Screen, Seg, Toggle, TopBar } from '../ui/kit';
 import { LoadPack } from './Tapes';
 import { JumpButton } from './UnitJump';
+import { CardsIcon } from './TapesCards';
 import { plainMeaning, thaiJoined, unitNumbers, unitTitle, type UnitItem } from './pack';
 import { NoteText, Phrase, PlayButton, SayButton, ToneKey, WHO_LABEL, WhyList, stopTapes, useTapes } from './parts';
 import './tapes.css';
@@ -61,6 +62,9 @@ export default function TapesUnit({ params }: { params: Record<string, string> }
       <div className="page-head" style={{ marginBottom: 18 }}>
         <Label>Unit {n} · {items.length} phrases</Label>
         <h1 className="h-page tp-unit-h">{unitTitle(pack, n)}</h1>
+        <Link to={`/tapes/cards/${n}`} className="pill small tp-cards-link" style={{ textDecoration: 'none', alignSelf: 'flex-start', marginTop: 10 }}>
+          <CardsIcon size={22} /> Flashcards for unit {n}
+        </Link>
       </div>
 
       {notes.length > 0 && (

@@ -14,6 +14,14 @@ export function lastSave(store: Store): string | null {
 }
 
 async function makeFile(store: Store, day: number): Promise<File> {
+  // The Tapes keep their marks in their own database; a copy rides in the
+  // save file (marks only, never the course material itself)
+  try {
+    const { loadState } = await import('../tapes/db');
+    store.set('tapes', await loadState());
+  } catch {
+    /* no Tapes on this device */
+  }
   // the date goes in first, so the file knows when it was made
   store.set(LAST_SAVE_KEY, localDate(Date.now()));
   const SQL = await initSqlJs({ locateFile: () => wasmUrl });

@@ -78,6 +78,16 @@ export function SaveFiles() {
       pending.db.run('DELETE FROM kv WHERE key = ?', [key]);
       if (here) pending.db.run('INSERT INTO kv(key, json) VALUES(?, ?)', [key, here.json]);
     }
+    // The Tapes' marks come back into their own database (older files have none)
+    try {
+      const row = pending.db.exec("SELECT json FROM kv WHERE key = 'tapes'")[0]?.values[0]?.[0];
+      if (typeof row === 'string') {
+        const { defaultState, saveState } = await import('../../tapes/db');
+        await saveState({ ...defaultState(), ...JSON.parse(row) });
+      }
+    } catch {
+      /* the progress still loads */
+    }
     await store.replaceFile(pending.db.export());
     location.reload();
   };

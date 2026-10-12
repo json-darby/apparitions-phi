@@ -11,7 +11,8 @@ import { readDayStart, replaceDayStart } from '../../db/browser';
 import { Sheet } from '../../ui/kit';
 
 /** kv kept when today starts again: preferences and this device's own settings, not progress. */
-const KEEP_TODAY = ['settings', 'live_server', 'last_backup', 'install_hidden_until'];
+// The Tapes sit outside the day: "start today again" keeps their marks
+const KEEP_TODAY = ['settings', 'live_server', 'last_backup', 'install_hidden_until', 'tapes'];
 
 type Ask = 'today' | 'fresh' | null;
 

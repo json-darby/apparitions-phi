@@ -1,7 +1,7 @@
 // Progress: the day path, streak and minutes, items by strength, strengths by
 // skill, weekly checkpoints and the weakest words.
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useApp, useStoreVersion } from '../app/context';
 import { addDays, localDate } from '../core/dates';
 import { SKILLS, type Skill } from '../content/types';
@@ -153,7 +153,43 @@ export default function Progress() {
           <Stat label="Strong" value={data.bands.strong} />
         </div>
       </section>
+
+      <ExtrasProgress />
     </Screen>
+  );
+}
+
+/** Extras sit outside the day plan; their marks still show here. */
+function ExtrasProgress() {
+  useStoreVersion();
+  const [heard, setHeard] = useState<number | null>(null);
+  const [cards, setCards] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true;
+    import('../tapes/db')
+      .then(({ loadState }) => loadState())
+      .then((s) => {
+        if (!alive) return;
+        setHeard(s.heard.length);
+        setCards(Object.keys(s.cards).length);
+      })
+      .catch(() => alive && (setHeard(0), setCards(0)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return (
+    <section className="page-section">
+      <ListHead title="Extras" note="outside the day plan" />
+      <div className="stats four" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <Stat label="The Tapes · units heard" value={heard ?? '…'} />
+        <Stat label="The Tapes · cards met" value={cards ?? '…'} />
+      </div>
+      <div className="hrow wrap" style={{ gap: 8, marginTop: 12 }}>
+        <Link to="/tapes" className="pill small" style={{ textDecoration: 'none' }}>The Tapes</Link>
+        <Link to="/tapes/cards" className="pill small" style={{ textDecoration: 'none' }}>Flashcards</Link>
+      </div>
+    </section>
   );
 }
 
