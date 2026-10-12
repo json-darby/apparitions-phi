@@ -27,6 +27,18 @@ export interface UnitItem {
   t?: number;
   /** true when a speaker's clip was kept for it */
   clip?: boolean;
+  /**
+   * The speaker's measured pitch, one entry per syllable of the first variant:
+   * 16 points, or [] where the textbook shape stands in. Added when sealing;
+   * packs without it still load, and say-it-yourself then measures the clip itself.
+   */
+  pitch?: number[][];
+  /**
+   * The speaker's whole-phrase pitch line: 48 points over the voiced span, on
+   * their own range (about 0.5 = their median pitch). Added when sealing; the
+   * melody tone check compares the learner's line with it.
+   */
+  melody?: number[];
 }
 
 export interface ReadingItem {
@@ -91,6 +103,45 @@ export function parsePack(html: string, now = Date.now()): { pack: Pack; clips: 
   }
   if (!Object.keys(units).length) throw new PackError('empty');
   return { pack: { v: 1, loadedAt: now, units, notes: raw.notes ?? {}, reading }, clips };
+}
+
+/**
+ * Attach measured pitch ({ "unit.index": contours }) to the pack's phrases, in
+ * place. An entry is kept only when it has one contour per syllable of the
+ * phrase's first variant. Returns how many phrases got pitch.
+ */
+export function mergePitch(pack: Pack, pitch: Record<string, unknown>): number {
+  let added = 0;
+  for (const [n, items] of Object.entries(pack.units)) {
+    items.forEach((it, i) => {
+      const p = pitch[`${n}.${i}`];
+      if (!Array.isArray(p) || p.length !== it.variants[0].flat().length) return;
+      if (!p.every((c) => Array.isArray(c) && (c.length === 0 || c.length === 16) && c.every((x) => typeof x === 'number' && Number.isFinite(x)))) return;
+      it.pitch = p as number[][];
+      added++;
+    });
+  }
+  return added;
+}
+
+/** Points in a phrase's melody line. */
+export const MELODY_POINTS = 48;
+
+/**
+ * Attach measured melody lines ({ "unit.index": 48 numbers }) to the pack's
+ * phrases, in place. Anything else is skipped. Returns how many phrases got one.
+ */
+export function mergeMelody(pack: Pack, melody: Record<string, unknown>): number {
+  let added = 0;
+  for (const [n, items] of Object.entries(pack.units)) {
+    items.forEach((it, i) => {
+      const m = melody[`${n}.${i}`];
+      if (!Array.isArray(m) || m.length !== MELODY_POINTS || !m.every((x) => typeof x === 'number' && Number.isFinite(x))) return;
+      it.melody = m as number[];
+      added++;
+    });
+  }
+  return added;
 }
 
 /** A data: URL as a Blob, without a network round trip. */

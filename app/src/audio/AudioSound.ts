@@ -14,7 +14,7 @@ import type { Item, Speed, Tone, VoiceId } from '../content/types';
 import type { Settings } from '../core/settings';
 import type { Store } from '../db/store';
 import { trackPitch } from './pitch';
-import { analyseTones, combineScores, DEFAULT_MID_HZ, rangeFromMid, type SpeakerRange, type ToneAnalysis } from './score';
+import { analyseTones, combineScores, DEFAULT_MID_HZ, rangeFromMid, type AnalyseOptions, type SpeakerRange, type ToneAnalysis } from './score';
 import { MicError, openMic, type MicSession } from './recorder';
 
 export interface SoundConfig {
@@ -666,6 +666,11 @@ export class AudioSound implements SoundService {
     return e?.pitch ?? null;
   }
 
+  private analyseOptions(target: RecordTarget): AnalyseOptions {
+    const st = this.cfg?.settings;
+    return { reference: this.referenceFor(target), range: this.range(), identity: st?.identity, melody: target.melody, mode: st?.tapesToneCheck ?? 'melody' };
+  }
+
   record(target: RecordTarget): Promise<Recording | null> {
     if (this.mode === 'captions') return this.captions.record(target);
     this.closeRecording(null);
@@ -743,7 +748,7 @@ export class AudioSound implements SoundService {
     let analysis: ToneAnalysis | null = null;
     const track = cap.pcm.length ? trackPitch(cap.pcm, cap.sampleRate) : undefined;
     if (track && tones.length) {
-      analysis = analyseTones(track, tones, { reference: this.referenceFor(target), range: this.range(), identity: this.cfg?.settings.identity });
+      analysis = analyseTones(track, tones, this.analyseOptions(target));
     }
     const rec: Recording = { kind: 'audio', ms: cap.ms, blob: cap.blob ?? undefined, pitch: analysis?.pitch, track };
     const take: Take = { rec, analysis };
@@ -760,6 +765,7 @@ export class AudioSound implements SoundService {
       reference: analysis ? analysis.syllables.map((s) => s.reference) : [],
       heard: analysis ? analysis.syllables.map((s) => s.heard) : [],
       scores: analysis ? analysis.syllables.map((s) => s.score) : [],
+      ...(analysis?.melody ? { melody: analysis.melody } : {}),
       autoMs: heard || !tones.length ? REVIEW_MS : null,
     };
     if (!tones.length && track) review.tone = null;
@@ -831,7 +837,7 @@ export class AudioSound implements SoundService {
     const p = (async (): Promise<SpeechScore | null> => {
       let a = this.takes.get(rec)?.analysis ?? null;
       if (!a && rec.track && target.tones?.length) {
-        a = analyseTones(rec.track, target.tones, { reference: this.referenceFor(target), range: this.range(), identity: this.cfg?.settings.identity });
+        a = analyseTones(rec.track, target.tones, this.analyseOptions(target));
       }
       if (!a) return null;
       const seg = await onlineSegmental(rec.blob, target.thai);
@@ -844,6 +850,7 @@ export class AudioSound implements SoundService {
         heard: a.syllables.map((s) => s.heard),
         syllables: a.syllables.map((s) => s.contour),
         reference: a.syllables.map((s) => s.reference),
+        ...(a.melody ? { melody: a.melody } : {}),
       };
     })();
     this.scores.set(rec, p);

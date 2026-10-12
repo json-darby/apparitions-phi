@@ -41,6 +41,8 @@ export interface Settings {
   voiceMidHz: number | null;
   /** faces drawn in their own colours, or all in one chosen colour (double-tap a face to change it) */
   faceColour: FaceColour;
+  /** The Tapes: tone check against a speaker's recording by the whole phrase's melody, or syllable by syllable */
+  tapesToneCheck: 'melody' | 'syllables';
 }
 
 /** The voice that models the learner's own speech. */
@@ -69,5 +71,6 @@ export function defaultSettings(today: string): Settings {
     fullscreen: false,
     voiceMidHz: null,
     faceColour: 'own',
+    tapesToneCheck: 'melody',
   };
 }

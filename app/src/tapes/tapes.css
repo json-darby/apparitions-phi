@@ -261,3 +261,6 @@ a.tp-item-main:hover .tp-th, button.tp-item-main:hover .tp-th { color: #fff; }
 .tp-fc-unit .tp-unit-main { flex: 1; min-width: 0; }
 .tp-fc-reset { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--mut); cursor: pointer; }
 .tp-fc-reset:hover { color: var(--fg); background: rgba(255, 255, 255, 0.06); }
+
+.tp-update { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; border-color: rgba(46, 230, 230, 0.4); }
+.sheet .tp-load { margin-top: 0 !important; border: 0; padding: 0; background: none; }

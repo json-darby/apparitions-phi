@@ -26,6 +26,13 @@
 
 .rec-review { text-align: left; margin: 14px 0 10px; }
 .rec-review .big { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+/* the whole phrase, above the per-syllable cells */
+.melody-strip { margin: 0 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.melody-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+.melody-key { display: inline-flex; gap: 12px; color: var(--fg-2); }
+.melody-key span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.melody-key i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+.melody-key i.ref { height: 6px; background: var(--fg); opacity: 0.25; }
 .rec-auto { height: 2px; background: var(--rule); margin: 12px 0 14px; overflow: hidden; }
 .rec-auto > i { display: block; height: 100%; background: var(--fg); animation: capbar linear forwards; }
 

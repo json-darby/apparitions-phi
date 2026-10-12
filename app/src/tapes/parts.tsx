@@ -236,15 +236,17 @@ export function clipReference(key: string, tones: Tone[]): Promise<(number | nul
 /**
  * Say it yourself: the app's own record sheet draws your pitch line over the
  * tones. With the speaker's clip, your tones are measured against how that
- * speaker said it; without one, against the textbook tone shapes.
+ * speaker said it (the pack's measured pitch when it has it, else measured
+ * here from the clip); without one, against the textbook tone shapes. With the
+ * speaker's measured melody, the whole phrase's pitch line is compared too.
  */
-export function SayButton({ v, en, big, clip }: { v: Variant; en?: string; big?: boolean; clip?: string | null }) {
+export function SayButton({ v, en, big, clip, pitch, melody }: { v: Variant; en?: string; big?: boolean; clip?: string | null; pitch?: number[][] | null; melody?: number[] | null }) {
   const { sound } = useApp();
   const go = async () => {
     stopTapes();
     const tones = sylls(v).map((s) => TONE_NAMES[s.t]);
-    const reference = clip ? await clipReference(clip, tones) : null;
-    const target = { thai: thaiOf(v).replace(/ /g, ''), roman: romanOf(v), en, tones, reference };
+    const reference = pitch && pitch.length === tones.length ? pitch : clip ? await clipReference(clip, tones) : null;
+    const target = { thai: thaiOf(v).replace(/ /g, ''), roman: romanOf(v), en, tones, reference, melody: melody ?? null };
     const rec = await sound.record(target);
     if (rec) await sound.score(rec, target);
   };

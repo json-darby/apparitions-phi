@@ -12,6 +12,10 @@
 //   4. syllable score = 0.5 DTW similarity + 0.5 classifier probability of the
 //      target tone; the tone score is the mean over syllables.
 //
+// Melody mode (The Tapes, with the speaker's measured whole-phrase line): the
+// learner's line over the whole phrase is also compared with the speaker's,
+// level-free, and tone = 0.65 melody + 0.35 mean syllable score.
+//
 // The online consonant/vowel check (if any) is combined later as
 // 0.6 tone + 0.4 segmental by the sound service.
 
@@ -344,6 +348,102 @@ export function classifyTone(c: number[], w: ClassifierWeights = CLASSIFIER): To
   return { tone: best, probs };
 }
 
+// ---------------------------------------------------------------- melody
+
+/** Points in a whole-phrase melody line (the pack's `melody`). */
+export const MELODY_POINTS = 48;
+
+export interface MelodyResult {
+  /** 0..1 */
+  score: number;
+  /** learner line, 48 points, mean 0 */
+  learner: number[];
+  /** speaker line, 48 points, mean 0 */
+  reference: number[];
+}
+
+/**
+ * The voiced span of a track, first to last voiced frame: isolated voiced
+ * specks under 40 ms at either end are dropped (clicks, breath), then the
+ * first and last 2 voiced frames (onset and offset perturbation). Null when
+ * nothing is left.
+ */
+export function voicedSpan(track: PitchTrack): Seg | null {
+  const { f0 } = track;
+  const runs: Seg[] = [];
+  for (let i = 0; i < f0.length; ) {
+    if (!f0[i]) { i++; continue; }
+    let j = i;
+    while (j < f0.length && f0[j]) j++;
+    runs.push({ start: i, end: j });
+    i = j;
+  }
+  const minLen = Math.max(1, Math.round(0.04 / (track.hop || 0.01)));
+  while (runs.length > 1 && runs[0].end - runs[0].start < minLen) runs.shift();
+  while (runs.length > 1 && runs[runs.length - 1].end - runs[runs.length - 1].start < minLen) runs.pop();
+  if (!runs.length) return null;
+  let start = runs[0].start;
+  let end = runs[runs.length - 1].end;
+  for (let k = 0; k < 2; k++) {
+    start++;
+    while (start < end && !f0[start]) start++;
+    end--;
+    while (end > start && !f0[end - 1]) end--;
+  }
+  return end > start ? { start, end } : null;
+}
+
+function centred(v: number[]): number[] {
+  const mean = v.reduce((a, b) => a + b, 0) / v.length;
+  return v.map((x) => x - mean);
+}
+
+/**
+ * Similarity width by syllable count: longer phrases drift further apart under
+ * DTW even when said alike. Calibrated on real recordings (same sentence by
+ * different speakers against different tones) so each length's best cut lands
+ * near 0.5 and a typical correct imitation scores about 0.75.
+ */
+export function melodyWidth(syllables: number): number {
+  return 0.12 + 0.056 * Math.max(1, syllables);
+}
+
+/**
+ * How alike two whole-phrase lines are, 0..1: each is resampled to 48 points
+ * and its mean taken away (level-free), then banded DTW (a fifth of the line)
+ * on level and slope, mapped through the width for `syllables` (default 4).
+ */
+export function melodySimilarity(a: number[], b: number[], syllables = 4): number {
+  const d = dtwDistance(centred(resampleSeries(a, MELODY_POINTS)), centred(resampleSeries(b, MELODY_POINTS)), Math.round(MELODY_POINTS * 0.2));
+  return Math.exp(-Math.pow(d / melodyWidth(syllables), 2));
+}
+
+/**
+ * The learner's whole-phrase pitch line against the speaker's (`melody`, 48
+ * points on the speaker's own 10-semitone range). The learner's line is
+ * normalised on their range (also 10 semitones wide), so after taking each
+ * line's mean away both are movements in the same units: register and voice
+ * do not count, the rises and falls do. DTW with a band of a fifth of the
+ * line absorbs a different tempo. `syllables` (the target's count) sets the
+ * similarity width. Null when too little was voiced.
+ */
+export function melodyMatch(track: PitchTrack, melody: number[], range: SpeakerRange, syllables = 4): MelodyResult | null {
+  if (melody.length < 2 || !melody.every(Number.isFinite)) return null;
+  const span = voicedSpan(track);
+  if (!span) return null;
+  const c: (number | null)[] = [];
+  let voiced = 0;
+  for (let k = span.start; k < span.end; k++) {
+    if (track.f0[k]) { c.push(norm(track.f0[k], range)); voiced++; } else c.push(null);
+  }
+  if (voiced < 10) return null;
+  const filled = fillContour(c, MELODY_POINTS);
+  if (!filled) return null;
+  const learner = centred(filled);
+  const reference = centred(resampleSeries(melody, MELODY_POINTS));
+  return { score: melodySimilarity(learner, reference, syllables), learner, reference };
+}
+
 // ---------------------------------------------------------------- scoring
 
 export interface SyllableResult {
@@ -371,6 +471,8 @@ export interface ToneAnalysis {
   /** utterance mid level (Hz) implied by the target tones, for range adaptation */
   impliedMidHz: number | null;
   voicedFrames: number;
+  /** the whole-phrase melody match (melody mode with the speaker's melody) */
+  melody?: MelodyResult;
 }
 
 /**
@@ -392,6 +494,10 @@ export interface AnalyseOptions {
   /** the learner's calibrated or adapted range; default by identity */
   range?: SpeakerRange | null;
   identity?: 'm' | 'f';
+  /** the speaker's whole-phrase pitch line (48 points), for the melody check */
+  melody?: number[] | null;
+  /** 'melody' (default) blends in the melody match when there is a melody; 'syllables' ignores it */
+  mode?: 'melody' | 'syllables';
 }
 
 /**
@@ -456,9 +562,13 @@ export function analyseTones(track: PitchTrack, tones: Tone[], o: AnalyseOptions
     for (let k = 0; k < POINTS; k++) pitch.push(a + ((b - a) * k) / (POINTS - 1));
   });
 
+  const sylTone = syllables.reduce((a, s) => a + s.score, 0) / n;
+  const melody = (o.mode ?? 'melody') === 'melody' && o.melody ? melodyMatch(track, o.melody, range, n) : null;
+
   return {
     syllables,
-    tone: syllables.reduce((a, s) => a + s.score, 0) / n,
+    tone: melody ? 0.65 * melody.score + 0.35 * sylTone : sylTone,
+    ...(melody ? { melody } : {}),
     pitch,
     range,
     impliedMidHz: impliedMidSt == null ? null : Math.pow(2, impliedMidSt / 12),

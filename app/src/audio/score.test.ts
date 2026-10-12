@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { trackPitch } from './pitch';
-import { analyseTones, classifyTone, combineScores, dtwDistance, dtwSimilarity, fillContour, rangeFromMid, referenceContours, segmentSyllables, speakerContours, type SpeakerRange } from './score';
+import { hzToSt, medianF0, trackPitch, type PitchTrack } from './pitch';
+import { analyseTones, classifyTone, fillContour as fill48, melodyMatch, melodySimilarity, voicedSpan, combineScores, dtwDistance, dtwSimilarity, fillContour, rangeFromMid, referenceContours, segmentSyllables, speakerContours, type SpeakerRange } from './score';
 import { mulberry32, synthUtterance, thaiToneContour, type SynthSyllable } from './synth';
 import { TONES, type Tone } from '../content/types';
 import { toneShape } from './sound';
@@ -234,5 +234,80 @@ describe("the course speaker's own clip as the reference", () => {
     expect(ref![2]).toEqual([]);
     // mostly wrong: the whole clip is set aside
     expect(speakerContours(track, 3, ['rising', 'low', 'rising'])).toBeNull();
+  });
+});
+
+describe('melody match (whole phrase against the speaker)', () => {
+  /** The speaker's melody as the sealing step measures it: 48 points on their own range, 0.5 = their median. */
+  function speakerMelody(track: PitchTrack): number[] {
+    const mid = medianF0(track);
+    const floor = mid * Math.pow(2, -10 / 24);
+    const span = voicedSpan(track)!;
+    const c: (number | null)[] = [];
+    for (let k = span.start; k < span.end; k++) c.push(track.f0[k] ? hzToSt(track.f0[k], floor) / 10 : null);
+    return fill48(c, 48)!;
+  }
+  const say = (ts: Tone[], mid: number, tempo: number, rng: () => number) =>
+    utter(ts.map((t) => ({ tone: t, dur: 0.24 * tempo, contour: thaiToneContour(t, rng) })), rangeFromMid(mid, 10), rng).track;
+
+  it('scores a different speaker at a different tempo high, and wrong tones clearly lower', () => {
+    const rng = mulberry32(301);
+    const phrases: Tone[][] = [['low', 'falling', 'mid'], ['rising', 'high', 'falling', 'mid'], ['mid', 'low', 'high'], ['falling', 'rising'], ['high', 'mid', 'falling', 'low', 'rising'], ['mid', 'falling', 'high', 'mid']];
+    const good: number[] = [];
+    const bad: number[] = [];
+    phrases.forEach((tones, k) => {
+      // the speaker and the learner are of the other sex, each way round
+      const [sp, me] = k % 2 ? [115, 225] : [210, 118];
+      const melody = speakerMelody(say(tones, sp, 1, rng));
+      const learner = rangeFromMid(me, 10);
+      const wrongTones = tones.map((t) => (({ mid: 'rising', low: 'high', falling: 'rising', high: 'low', rising: 'falling' }) as Record<Tone, Tone>)[t]);
+      for (const tempo of [0.75, 1.25]) {
+        good.push(melodyMatch(say(tones, me, tempo, rng), melody, learner, tones.length)!.score);
+        bad.push(melodyMatch(say(wrongTones, me, tempo, rng), melody, learner, tones.length)!.score);
+      }
+    });
+    const avg = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+    console.log(`melody: good ${good.map((x) => x.toFixed(2)).join(' ')} (mean ${avg(good).toFixed(2)}); wrong ${bad.map((x) => x.toFixed(2)).join(' ')} (mean ${avg(bad).toFixed(2)})`);
+    expect(avg(good)).toBeGreaterThanOrEqual(0.75);
+    expect(avg(bad)).toBeLessThanOrEqual(0.25);
+    expect(good.filter((x) => x >= 0.7).length).toBeGreaterThanOrEqual(good.length - 1);
+    expect(bad.filter((x) => x <= 0.35).length).toBeGreaterThanOrEqual(bad.length - 1);
+    // each imitation beats every wrong-tone take
+    expect(Math.min(...good)).toBeGreaterThan(Math.max(...bad) + 0.25);
+  });
+
+  it('two lines: identical 1, same moves at another level 1, opposite moves low', () => {
+    const up = Array.from({ length: 48 }, (_, i) => 0.3 + (0.4 * i) / 47);
+    expect(melodySimilarity(up, up)).toBeCloseTo(1, 6);
+    expect(melodySimilarity(up.map((v) => v + 0.3), up)).toBeCloseTo(1, 6);
+    expect(melodySimilarity([...up].reverse(), up, 1)).toBeLessThan(0.35);
+    // a longer phrase is given more room
+    expect(melodySimilarity(up.map((v, i) => v + 0.05 * Math.sin(i / 3)), up, 6)).toBeGreaterThan(melodySimilarity(up.map((v, i) => v + 0.05 * Math.sin(i / 3)), up, 1));
+  });
+
+  it('blends into the tone score in melody mode only', () => {
+    const rng = mulberry32(302);
+    const tones: Tone[] = ['falling', 'high', 'low'];
+    const melody = speakerMelody(say(tones, 200, 1, rng));
+    const track = say(tones, 120, 1.2, rng);
+    const o = { range: rangeFromMid(120, 10), identity: 'm' as const };
+    const plain = analyseTones(track, tones, o)!;
+    const syl = analyseTones(track, tones, { ...o, melody, mode: 'syllables' })!;
+    const mel = analyseTones(track, tones, { ...o, melody })!;
+    expect(syl).toEqual(plain);
+    expect(syl.melody).toBeUndefined();
+    expect(mel.melody!.learner).toHaveLength(48);
+    expect(mel.melody!.reference).toHaveLength(48);
+    expect(mel.tone).toBeCloseTo(0.65 * mel.melody!.score + 0.35 * plain.tone, 6);
+  });
+
+  it('gives up when too little was voiced', () => {
+    const rng = mulberry32(303);
+    const melody = Array.from({ length: 48 }, (_, i) => 0.5 + 0.2 * Math.sin(i / 8));
+    const track = say(['mid'], 120, 1, rng);
+    expect(melodyMatch({ ...track, f0: new Float32Array(track.f0.length) }, melody, rangeFromMid(120))).toBeNull();
+    const speck = new Float32Array(track.f0.length);
+    for (let k = 30; k < 36; k++) speck[k] = 120;
+    expect(melodyMatch({ ...track, f0: speck }, melody, rangeFromMid(120))).toBeNull();
   });
 });

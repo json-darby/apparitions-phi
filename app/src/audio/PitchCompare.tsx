@@ -2,8 +2,10 @@
 // target is a soft band (the reference contour: measured from the course clip
 // where one exists, else the textbook shape); the learner is a bright line.
 // Under each cell: the target tone, what was heard, and a hairline score.
+// MelodyStrip: the whole phrase in one line, the speaker's against yours,
+// drawn level-free (both centred), above the cells when a melody was matched.
 
-import { TONE_LABEL, toneShape, type SpeechScore } from './sound';
+import { TONE_LABEL, toneShape, type MelodyLines, type SpeechScore } from './sound';
 import type { Tone } from '../content/types';
 
 function path(values: number[], x0: number, x1: number, h: number, pad: number): string {
@@ -62,7 +64,7 @@ export function PitchCompare(p: PitchCompareProps) {
           return (
             <g key={i}>
               {i > 0 && <line x1={x0 - gap / 2 - 4} x2={x0 - gap / 2 - 4} y1={6} y2={h - 6} stroke="var(--rule)" strokeWidth={1} />}
-              <path d={path(ref, x0, x1, h, pad)} fill="none" stroke="var(--fg)" strokeOpacity={0.14} strokeWidth={14} strokeLinecap="round" strokeLinejoin="round" />
+              <path d={path(ref, x0, x1, h, pad)} fill="none" stroke="var(--fg)" strokeOpacity={0.14} strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
               <path d={path(ref, x0, x1, h, pad)} fill="none" stroke="var(--fg)" strokeOpacity={0.55} strokeWidth={1.5} strokeDasharray="2 4" strokeLinecap="round" />
               {mine && (
                 <>
@@ -99,6 +101,47 @@ export function PitchCompare(p: PitchCompareProps) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Mean-0 line to an SVG path, centred vertically; ±0.5 of the range fills the height. */
+/** A mean-removed line across the strip; `gain` turns its units into pixels. */
+function centredPath(values: number[], w: number, h: number, pad: number, gain: number): string {
+  const n = values.length;
+  return values
+    .map((v, i) => {
+      const x = pad + (n === 1 ? 0 : (i / (n - 1)) * (w - pad * 2));
+      const y = h / 2 - v * gain;
+      return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    })
+    .join(' ');
+}
+
+/** The whole phrase: the speaker's line as a soft band, yours bright over it, with the melody match. */
+export function MelodyStrip({ melody, w = 480, h = 84, learnerColour = 'var(--blue)' }: { melody: MelodyLines; w?: number; h?: number; learnerColour?: string }) {
+  const pad = 10;
+  // both lines share one scale, fitted to the larger swing (at least 3 semitones either way), so the shape fills the strip
+  const peak = Math.max(0.3, ...melody.reference.map(Math.abs), ...melody.learner.map(Math.abs));
+  const gain = (h / 2 - pad) / peak;
+  const ref = centredPath(melody.reference, w, h, pad, gain);
+  const last = melody.learner[melody.learner.length - 1] ?? 0;
+  return (
+    <div className="melody-strip" style={{ width: '100%', maxWidth: w }}>
+      <div className="melody-head">
+        <span className="label">Whole phrase · {Math.round(melody.score * 100)}</span>
+        <span className="melody-key small" aria-hidden>
+          <span><i className="ref" />Speaker</span>
+          <span><i style={{ background: learnerColour }} />You</span>
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} width="100%" style={{ display: 'block' }} role="img" aria-label={`Whole-phrase melody: your line over the speaker's, ${Math.round(melody.score * 100)}% match`}>
+        <line x1={0} x2={w} y1={h / 2} y2={h / 2} stroke="var(--rule)" strokeWidth={1} strokeDasharray="3 4" />
+        <path d={ref} fill="none" stroke="var(--fg)" strokeOpacity={0.14} strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={ref} fill="none" stroke="var(--fg)" strokeOpacity={0.55} strokeWidth={1.5} strokeDasharray="2 4" strokeLinecap="round" />
+        <path d={centredPath(melody.learner, w, h, pad, gain)} fill="none" stroke={learnerColour} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={w - pad} cy={h / 2 - last * gain} r={3.5} fill={learnerColour} />
+      </svg>
     </div>
   );
 }

@@ -275,6 +275,13 @@ a.logo { display: inline-flex; align-items: center; min-height: 44px; }
 .settings .swatch { width: 32px; height: 32px; position: relative; }
 .settings .swatch::after { content: ''; position: absolute; inset: -6px -4px; }
 .settings .swatch i { width: 24px; height: 24px; }
+/* a closed group of rarely needed settings */
+.settings details.advanced { border-top: 1px solid var(--rule); }
+.settings details.advanced > summary { min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 0; cursor: pointer; list-style: none; font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-2); }
+.settings details.advanced > summary::-webkit-details-marker { display: none; }
+.settings details.advanced > summary::after { content: '+'; margin-left: auto; font-size: 16px; font-weight: 400; letter-spacing: 0; }
+.settings details.advanced[open] > summary::after { content: '−'; }
+.settings details.advanced > summary:hover { color: var(--fg); }
 .line-input { width: 170px; max-width: 100%; height: 44px; padding: 0 12px; border-color: var(--rule); font-size: 15px; }
 .date-value {
   position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 2px;

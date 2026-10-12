@@ -40,6 +40,8 @@ export interface RecordTarget {
   ref?: string;
   /** the reference contour per syllable (16 points), when the screen measured the speaker's own clip */
   reference?: (number | null)[][] | null;
+  /** the speaker's whole-phrase pitch line (48 points on their own range), for the melody tone check */
+  melody?: number[] | null;
   thai: string;
   roman?: string;
   en?: string;
@@ -76,6 +78,16 @@ export interface SpeechScore {
   syllables?: (number[] | null)[];
   /** reference contour per syllable, 16 points 0..1 */
   reference?: number[][];
+  /** the whole-phrase melody match, when the target had the speaker's melody */
+  melody?: MelodyLines;
+}
+
+/** Learner and speaker pitch lines over the whole phrase (48 points each, mean 0), and how well they match. */
+export interface MelodyLines {
+  learner: number[];
+  reference: number[];
+  /** 0..1 */
+  score: number;
 }
 
 /** What the record sheet shows after a take (audio mode). */
@@ -87,6 +99,8 @@ export interface RecordReview {
   reference: number[][];
   heard: (Tone | null)[];
   scores: number[];
+  /** the whole-phrase melody match, when the target had the speaker's melody */
+  melody?: MelodyLines;
   /** auto-continue after this many ms (null = wait for a tap) */
   autoMs: number | null;
 }

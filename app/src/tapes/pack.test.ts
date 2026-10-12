@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PackError, parsePack, plainMeaning, searchPack, unitTitle, unnamed } from './pack';
+import { PackError, mergeMelody, mergePitch, parsePack, plainMeaning, searchPack, unitTitle, unnamed } from './pack';
 import { defaultState } from './db';
 import { deckOf, dueCount, grade, nextCard } from './review';
 import { WrongPassword, dataUrlBytes, packBody, seal, unseal } from './sealed';
@@ -85,6 +85,62 @@ describe('the locked pack', () => {
     const sealed = await seal(packBody(pack, clips.map(dataUrlBytes)), 'secret', 1000);
     await expect(unseal(sealed.buffer as ArrayBuffer, 'nope')).rejects.toBeInstanceOf(WrongPassword);
     expect(Buffer.from(sealed).toString('utf8')).not.toContain('ครับ');
+  });
+});
+
+describe('measured pitch', () => {
+  const line = Array.from({ length: 16 }, (_, k) => k / 15);
+
+  it('attaches only contours with one entry per syllable', () => {
+    const { pack } = parsePack(page);
+    const added = mergePitch(pack, { '1.0': [line, line], '1.1': [line, []], '9.0': [line], '1.5': [line] });
+    expect(added).toBe(1);
+    expect(pack.units['1'][0].pitch).toBeUndefined();
+    expect(pack.units['1'][1].pitch).toEqual([line, []]);
+  });
+
+  it('skips contours of the wrong size or with non-numbers', () => {
+    const { pack } = parsePack(page);
+    expect(mergePitch(pack, { '1.0': [[1, 2, 3]], '1.1': [line, ['x']] })).toBe(0);
+    expect(pack.units['1'].every((it) => it.pitch === undefined)).toBe(true);
+  });
+
+  it('survives sealing and opening', async () => {
+    const { pack, clips } = parsePack(page);
+    mergePitch(pack, { '1.0': [line] });
+    const opened = await unseal((await seal(packBody(pack, clips.map(dataUrlBytes)), 'secret', 1000)).buffer as ArrayBuffer, 'secret');
+    expect(opened.pack.units['1'][0].pitch).toEqual([line]);
+    expect(opened.pack.units['1'][1].pitch).toBeUndefined();
+  });
+
+  it('an older pack without pitch still opens', async () => {
+    const { pack, clips } = parsePack(page);
+    const opened = await unseal((await seal(packBody(pack, clips.map(dataUrlBytes)), 'secret', 1000)).buffer as ArrayBuffer, 'secret');
+    expect(opened.pack.units['1'].every((it) => !('pitch' in it))).toBe(true);
+    expect(opened.pack.units['1'][0].clip).toBe(true);
+  });
+});
+
+describe('measured melody', () => {
+  const tune = Array.from({ length: 48 }, (_, k) => 0.5 + 0.2 * Math.sin(k / 6));
+
+  it('attaches only lines of 48 finite numbers', () => {
+    const { pack } = parsePack(page);
+    const added = mergeMelody(pack, { '1.0': tune, '1.1': tune.slice(0, 47), '9.0': tune });
+    expect(added).toBe(1);
+    expect(pack.units['1'][0].melody).toEqual(tune);
+    expect(pack.units['1'][1].melody).toBeUndefined();
+    expect(mergeMelody(pack, { '1.1': [...tune.slice(0, 47), Number.NaN] })).toBe(0);
+    expect(mergeMelody(pack, { '1.1': [...tune.slice(0, 47), 'x'] })).toBe(0);
+    expect(mergeMelody(pack, { '1.1': { length: 48 } })).toBe(0);
+  });
+
+  it('survives sealing and opening', async () => {
+    const { pack, clips } = parsePack(page);
+    mergeMelody(pack, { '1.1': tune });
+    const opened = await unseal((await seal(packBody(pack, clips.map(dataUrlBytes)), 'secret', 1000)).buffer as ArrayBuffer, 'secret');
+    expect(opened.pack.units['1'][1].melody).toEqual(tune);
+    expect(opened.pack.units['1'][0].melody).toBeUndefined();
   });
 });
 

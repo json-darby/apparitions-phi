@@ -1,6 +1,7 @@
 // Settings → Sound: real audio or captions only, default speed, the voice that
 // models your own speech, a microphone check that calibrates your pitch range,
-// and an optional "download all audio" that fills the offline cache.
+// an optional "download all audio" that fills the offline cache, and (under
+// Advanced) how The Tapes checks tones against a speaker's recording.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../app/context';
@@ -60,6 +61,15 @@ export function SoundSettings() {
       <MicCheck />
       {content.hasAudio && <OfflineAudio paths={paths} />}
       {import.meta.env.DEV && <DevFixture />}
+      <details className="advanced">
+        <summary>Advanced</summary>
+        <Line
+          title="Tone check against a speaker’s recording"
+          note={s.tapesToneCheck === 'syllables' ? 'Each syllable’s tone against the speaker’s, one at a time.' : 'Your whole phrase’s rise and fall against the speaker’s, plus each syllable’s tone.'}
+        >
+          <Seg label="Tone check against a speaker’s recording" value={s.tapesToneCheck ?? 'melody'} onChange={(v) => set({ tapesToneCheck: v })} options={[{ v: 'melody', label: 'Melody (whole phrase)' }, { v: 'syllables', label: 'Syllables' }]} />
+        </Line>
+      </details>
     </>
   );
 }

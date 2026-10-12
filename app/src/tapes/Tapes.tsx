@@ -40,6 +40,10 @@ export default function Tapes() {
   const next = nums.find((n) => !heard.has(n)) ?? nums[nums.length - 1];
   const resume = state?.lastUnit ?? next;
   const found = useMemo(() => (pack && q.trim().length > 1 ? searchPack(pack, q) : []), [pack, q]);
+  // a pack from before the speakers' melodies were measured: offer the new one
+  const stale = useMemo(() => !!pack && !Object.values(pack.units).some((u) => u.some((it) => it.melody)), [pack]);
+  const [updating, setUpdating] = useState(false);
+  const [later, setLater] = useState(false);
 
   return (
     <Screen top={<TopBar mid="The Tapes" parent="/extras" right={pack ? <CardsLink /> : undefined} />} narrow className="tapes">
@@ -48,6 +52,19 @@ export default function Tapes() {
         <h1 className="h-page">The Tapes</h1>
         <p className="body" style={{ margin: 0 }}>What you just heard on the course, written down: notes, phrases and the speakers' own clips.</p>
       </div>
+
+      {stale && !later && (
+        <div className="card tp-update">
+          <span className="stack gap-1">
+            <span className="label">Study file update</span>
+            <span className="body">The speakers' own melodies, so "say it yourself" checks your tones against how they said it. Enter your password once to get it.</span>
+          </span>
+          <span className="hrow wrap" style={{ gap: 8 }}>
+            <button type="button" className="pill solid small" onClick={() => setUpdating(true)}>Update</button>
+            <button type="button" className="pill text small" onClick={() => setLater(true)}>Not now</button>
+          </span>
+        </div>
+      )}
 
       <div className="lib-tabs">
         <Seg label="Tapes section" value={tab} onChange={setTab} options={TABS} />
@@ -157,6 +174,11 @@ export default function Tapes() {
       {tab === 'tips' && <TipsTab />}
 
       {manage && pack && <ManageSheet pack={pack} onClose={() => setManage(false)} />}
+      {updating && (
+        <Sheet label="Update your study file" onClose={() => setUpdating(false)}>
+          <LoadPack update onDone={() => setUpdating(false)} />
+        </Sheet>
+      )}
     </Screen>
   );
 }
@@ -186,8 +208,12 @@ function CardsTab({ pack }: { pack: Pack }) {
   );
 }
 
-/** Nothing on this device yet: unlock the pack with the password (or, failing that, choose the study file). */
-export function LoadPack() {
+/**
+ * Nothing on this device yet: unlock the pack with the password (or, failing
+ * that, choose the study file). With `update`, the same unlock replaces an
+ * older pack already here; progress lives apart from the pack, so it stays.
+ */
+export function LoadPack({ update, onDone }: { update?: boolean; onDone?: () => void } = {}) {
   const input = useRef<HTMLInputElement>(null);
   const pwBox = useRef<HTMLInputElement>(null);
   const [pw, setPw] = useState('');
@@ -205,6 +231,7 @@ export function LoadPack() {
     try {
       await unlockPack(pw, setBusy);
       tapesChanged();
+      onDone?.();
     } catch (e) {
       setErr(e instanceof WrongPassword
         ? "That password isn't right."
@@ -232,9 +259,11 @@ export function LoadPack() {
   };
   return (
     <section className="card tp-load" style={{ marginTop: 18 }}>
-      <Label fg>Unlock The Tapes</Label>
+      <Label fg>{update ? 'Update your study file' : 'Unlock The Tapes'}</Label>
       <p className="body" style={{ margin: 0 }}>
-        Type the password once on this device. The units and the speakers' clips download (about 50 MB) and stay here, offline.
+        {update
+          ? "Type the password once more. The new study file downloads (about 50 MB, best on Wi-Fi) and replaces the old one. Your cards, ticks and settings stay."
+          : "Type the password once on this device. The units and the speakers' clips download (about 50 MB) and stay here, offline."}
       </p>
       {busy != null ? (
         <div className="stack gap-2">
@@ -258,7 +287,7 @@ export function LoadPack() {
               enterKeyHint="go"
             />
           </label>
-          <button type="submit" className="pill solid big wide" disabled={!pw.trim()}>Unlock</button>
+          <button type="submit" className="pill solid big wide" disabled={!pw.trim()}>{update ? 'Update' : 'Unlock'}</button>
         </form>
       )}
       {err && <p className="small" style={{ color: 'var(--bad)', margin: 0 }} role="alert">{err}</p>}
@@ -281,6 +310,18 @@ function ManageSheet({ pack, onClose }: { pack: Pack; onClose: () => void }) {
   const [busy, setBusy] = useState<number | null>(null);
   const n = unitNumbers(pack).length;
   const phrases = Object.values(pack.units).reduce((a, u) => a + u.length, 0);
+  const [download, setDownload] = useState(false);
+  // the latest locked file from the app's site, with the password: same screen as the first unlock
+  if (download) {
+    return (
+      <Sheet onClose={onClose} label="Download the latest study file">
+        <div className="stack gap-4">
+          <LoadPack update onDone={onClose} />
+          <button type="button" className="pill text" onClick={() => setDownload(false)}>Back</button>
+        </div>
+      </Sheet>
+    );
+  }
   return (
     <Sheet onClose={onClose} label="Your study file">
       <div className="stack gap-4">
@@ -301,12 +342,15 @@ function ManageSheet({ pack, onClose }: { pack: Pack; onClose: () => void }) {
           }
         }} />
         {busy != null ? <Meter value={busy} colour="var(--blue)" /> : (
-          <div className="btn-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-            <button type="button" className="pill" onClick={() => input.current?.click()}>Load a newer one</button>
-            <button type="button" className="pill" onClick={async () => { await removePack(); tapesChanged(); onClose(); }}>Remove it</button>
+          <div className="stack gap-2">
+            <button type="button" className="pill solid wide" onClick={() => setDownload(true)}>Download the latest study file</button>
+            <div className="btn-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+              <button type="button" className="pill" onClick={() => input.current?.click()}>Load from a file</button>
+              <button type="button" className="pill" onClick={async () => { await removePack(); tapesChanged(); onClose(); }}>Remove it</button>
+            </div>
           </div>
         )}
-        <p className="small" style={{ margin: 0 }}>Removing it keeps your ticks and review cards, so loading it again picks up where you were.</p>
+        <p className="small" style={{ margin: 0 }}>Your ticks, cards and settings are kept apart from the study file: downloading, loading or removing it never touches them.</p>
         <button type="button" className="pill text" onClick={onClose}>Close</button>
       </div>
     </Sheet>

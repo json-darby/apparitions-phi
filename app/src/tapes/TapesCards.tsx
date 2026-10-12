@@ -521,7 +521,7 @@ function CardSession({ which }: { which: string }) {
                 </div>
                 <div className="tp-fc-actions" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
                   <PlayButton clip={clip} thai={thaiJoined(v)} big />
-                  <SayButton v={v} en={plainMeaning(it.mean)} clip={clip} big />
+                  <SayButton v={v} en={plainMeaning(it.mean)} clip={clip} pitch={it.pitch} melody={it.melody} big />
                 </div>
                 {(it.words.length > 1 || it.note) && (
                   <div className="tp-fc-detail">

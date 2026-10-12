@@ -10,7 +10,7 @@ import { useApp } from '../app/context';
 import { useKeys } from '../input/keys';
 import { myVoiceFor } from '../core/settings';
 import { AudioSound } from './AudioSound';
-import { PitchCompare } from './PitchCompare';
+import { MelodyStrip, PitchCompare } from './PitchCompare';
 import type { SoundState } from './sound';
 import './audio.css';
 
@@ -293,6 +293,7 @@ function RecordSheet({ recording }: { recording: Rec }) {
                   )}
                 </div>
               </div>
+              {review.melody && review.tone != null && <MelodyStrip melody={review.melody} />}
               {review.tones.length > 0 && (
                 <PitchCompare
                   tones={review.tones}
@@ -309,7 +310,7 @@ function RecordSheet({ recording }: { recording: Rec }) {
                 <p className="small" style={{ margin: '10px 0 0' }}>Nothing voiced came through. Move closer, speak up, and try again.</p>
               )}
               <p className="small" style={{ margin: '10px 0 0' }}>
-                Blue is you; the soft band is the target. Measured on this device{navigator.onLine ? '' : ', tone only while offline'}.
+                Blue is you; the soft band is {review.melody ? 'the speaker' : 'the target'}. Measured on this device{navigator.onLine ? '' : ', tone only while offline'}.
               </p>
             </div>
             {review.autoMs != null && (
