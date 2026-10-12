@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { PackError, parsePack, plainMeaning, searchPack, unitTitle } from './pack';
+import { PackError, parsePack, plainMeaning, searchPack, unitTitle, unnamed } from './pack';
 import { defaultState } from './db';
 import { deckOf, dueCount, grade, nextCard } from './review';
+import { WrongPassword, dataUrlBytes, packBody, seal, unseal } from './sealed';
 
 const syl = (th: string, ro: string, t: number) => ({ th, ro, t, cls: 'low', why: 'x', irr: false });
 const UNITS = {
@@ -40,6 +41,12 @@ describe('the study file', () => {
     expect(searchPack(pack, 'polite')).toHaveLength(1);
   });
 
+  it('never names the course', () => {
+    const name = ['P', 'i', 'm', 's', 'l', 'e', 'u', 'r'].join('');
+    expect(unnamed(`"${name} teaches it first. Then ${name}'s build-up."`)).toBe(`"The course teaches it first. Then the course's build-up."`);
+    expect(unnamed(`ok. ${name} drills it`)).toBe('ok. The course drills it');
+  });
+
   it('drops the speaker tag from a meaning', () => {
     expect(plainMeaning('Do you understand? (woman, question)')).toBe('Do you understand?');
     expect(plainMeaning('Excuse me. (man)')).toBe('Excuse me.');
@@ -62,6 +69,25 @@ describe('the Tapes review', () => {
   });
 });
 
+describe('the locked pack', () => {
+  it('opens with the password (any case) and keeps every clip byte', async () => {
+    const { pack, clips } = parsePack(page);
+    const sealed = await seal(packBody(pack, clips.map(dataUrlBytes)), 'Secret', 1000);
+    const opened = await unseal(sealed.buffer as ArrayBuffer, ' secret ');
+    expect(opened.pack.units['1']).toHaveLength(2);
+    expect(opened.clips.map((c) => c.key)).toEqual(['1.0']);
+    expect([...new Uint8Array(await opened.clips[0].blob.arrayBuffer())]).toEqual([0x49, 0x44, 0x33]);
+    expect(opened.clips[0].blob.type).toBe('audio/mpeg');
+  });
+
+  it('refuses the wrong password, and the sealed bytes do not show the Thai', async () => {
+    const { pack, clips } = parsePack(page);
+    const sealed = await seal(packBody(pack, clips.map(dataUrlBytes)), 'secret', 1000);
+    await expect(unseal(sealed.buffer as ArrayBuffer, 'nope')).rejects.toBeInstanceOf(WrongPassword);
+    expect(Buffer.from(sealed).toString('utf8')).not.toContain('ครับ');
+  });
+});
+
 // the owner's own study file, when pointed at (never committed): TAPES_FILE=/path/index.html
 const real = process.env.TAPES_FILE;
 describe.skipIf(!real)('the real study file', () => {
@@ -71,5 +97,6 @@ describe.skipIf(!real)('the real study file', () => {
     console.log({ units: Object.keys(pack.units).length, phrases, clips: clips.length, reading: pack.reading.length, titles: Object.keys(pack.units).map((n) => unitTitle(pack, +n)) });
     expect(Object.keys(pack.units)).toHaveLength(30);
     expect(clips.length).toBeGreaterThan(2000);
+    expect(JSON.stringify(pack).toLowerCase()).not.toContain(['p', 'i', 'm', 's', 'l', 'e', 'u', 'r'].join(''));
   });
 });

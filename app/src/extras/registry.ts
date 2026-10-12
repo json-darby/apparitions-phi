@@ -15,7 +15,7 @@ export const EXTRAS: Extra[] = [
   {
     to: '/tapes',
     title: 'The Tapes',
-    note: 'Pimsleur companion',
-    about: 'Notes, phrases and the speakers’ clips for each Pimsleur unit, a short review and the tone rules, for a quick look on a break.',
+    note: 'P******* companion',
+    about: 'Notes, phrases and the speakers’ clips for each unit of the course, a short review and the tone rules, for a quick look on a break.',
   },
 ];

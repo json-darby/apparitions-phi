@@ -52,7 +52,7 @@ export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'n
 
   // Extras: beside the course, not part of it (extras/registry.ts lists them)
   { path: '/extras', screen: L(() => import('../extras/Extras')), extra: true },
-  // The Tapes (Pimsleur companion; the material is the learner's own file)
+  // The Tapes (a course companion; the material is the learner's own, locked)
   { path: '/tapes', screen: L(() => import('../tapes/Tapes')), extra: true },
   { path: '/tapes/unit/:n', screen: L(() => import('../tapes/TapesUnit')), extra: true },
   { path: '/tapes/review', screen: L(() => import('../tapes/TapesReview')), extra: true },

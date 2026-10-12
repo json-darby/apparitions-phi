@@ -1,15 +1,17 @@
-// The Tapes: a companion for the Pimsleur course, for a quick look on a break.
+// The Tapes: a companion for an audio course, for a quick look on a break.
 // Units (notes and phrases with the speakers' clips), a short review, the
 // reading lessons, the letters, the tone rules and tips. The course material
 // comes from the learner's own study file, loaded once per device.
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, navigate, useRoute } from '../app/router';
 import { Label, ListHead, Meter, Row, Screen, Seg, Sheet, TopBar } from '../ui/kit';
-import { importPack, removePack } from './db';
+import { importPack, removePack, unlockPack } from './db';
+import { NotSealed, WrongPassword } from './sealed';
 import { PackError, plainMeaning, searchPack, unitNumbers, unitTitle, type Pack } from './pack';
 import { Phrase, PlayButton, ToneKey, WHO_LABEL, tapesChanged, useTapes } from './parts';
 import { LettersTab, TipsTab, TonesTab } from './Guide';
+import { UnitGrid } from './UnitJump';
 import { dueCount } from './review';
 import './tapes.css';
 
@@ -41,7 +43,7 @@ export default function Tapes() {
   return (
     <Screen top={<TopBar mid="The Tapes" parent="/extras" />} narrow className="tapes">
       <div className="page-head" style={{ marginBottom: 16 }}>
-        <Label>Extras · Pimsleur companion{pack ? ` · ${nums.length} units` : ''}</Label>
+        <Label>Extras · P******* companion{pack ? ` · ${nums.length} units` : ''}</Label>
         <h1 className="h-page">The Tapes</h1>
         <p className="body" style={{ margin: 0 }}>What you just heard on the course, written down: notes, phrases and the speakers' own clips.</p>
       </div>
@@ -56,11 +58,15 @@ export default function Tapes() {
 
       {pack && tab === 'units' && (
         <section style={{ marginTop: 18 }}>
+          <div className="tp-jump-wrap">
+            <ListHead title="Go to a unit" note={`${heard.size} of ${nums.length} heard`} />
+            <UnitGrid nums={nums} heard={[...heard]} current={state?.lastUnit} onPick={(n) => navigate(`/tapes/unit/${n}`)} />
+          </div>
           {resume != null && (
             <div className="card tp-resume">
               <div className="list-head" style={{ paddingBottom: 0 }}>
                 <span className="label">{state?.lastUnit ? 'Pick up where you left off' : 'Start here'}</span>
-                <span className="small num">{heard.size} of {nums.length} heard</span>
+                <span className="small num">{pack.units[String(resume)]?.length ?? 0} phrases</span>
               </div>
               <div className="tp-resume-title">
                 <span className="h-m">Unit {resume}</span>
@@ -182,11 +188,35 @@ function ReviewTab({ pack, heard, newPerDay, setNew }: { pack: Pack; heard: numb
   );
 }
 
-/** No study file yet: what it is and how to load it. */
+/** Nothing on this device yet: unlock the pack with the password (or, failing that, choose the study file). */
 export function LoadPack() {
   const input = useRef<HTMLInputElement>(null);
+  const pwBox = useRef<HTMLInputElement>(null);
+  const [pw, setPw] = useState('');
   const [busy, setBusy] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [fileWay, setFileWay] = useState(false);
+  // after a wrong try the box comes back focused with its text selected, ready to retype
+  useEffect(() => {
+    if (err && busy == null) pwBox.current?.select();
+  }, [err, busy]);
+  const unlock = async () => {
+    if (!pw.trim() || busy != null) return;
+    setErr(null);
+    setBusy(0);
+    try {
+      await unlockPack(pw, setBusy);
+      tapesChanged();
+    } catch (e) {
+      setErr(e instanceof WrongPassword
+        ? "That password isn't right."
+        : e instanceof NotSealed || (e as Error)?.message?.startsWith('download')
+          ? "Couldn't download the Tapes just now. Check the connection and try again."
+          : `Couldn't keep them on this device (${(e as Error)?.message ?? 'storage refused'}). Free some space and try again.`);
+    } finally {
+      setBusy(null);
+    }
+  };
   const pick = async (f: File | undefined) => {
     if (!f) return;
     setErr(null);
@@ -204,24 +234,45 @@ export function LoadPack() {
   };
   return (
     <section className="card tp-load" style={{ marginTop: 18 }}>
-      <Label fg>Load your study file</Label>
+      <Label fg>Unlock The Tapes</Label>
       <p className="body" style={{ margin: 0 }}>
-        The Tapes read the Thai study page you made alongside the course (the <b>index.html</b>, about 60 MB). It's kept on this device only, never uploaded, and it works offline after that. Do it once on each device.
+        Type the password once on this device. The units and the speakers' clips download (about 50 MB) and stay here, offline.
       </p>
-      <ol className="small tp-steps">
-        <li>Put the file somewhere this device can see it: Downloads, Files, Drive or iCloud.</li>
-        <li>Tap the button and choose it. Loading takes a few seconds.</li>
-      </ol>
-      <input ref={input} type="file" accept=".html,.htm,text/html" hidden onChange={(e) => void pick(e.target.files?.[0])} />
       {busy != null ? (
         <div className="stack gap-2">
           <Meter value={busy} colour="var(--blue)" />
-          <span className="small num">Keeping the clips on this device… {Math.round(busy * 100)}%</span>
+          <span className="small num">{busy < 0.76 ? 'Downloading' : 'Keeping it on this device'}… {Math.round(busy * 100)}%</span>
         </div>
       ) : (
-        <button type="button" className="pill solid big wide" onClick={() => input.current?.click()}>Choose the study file</button>
+        <form className="stack gap-3" onSubmit={(e) => { e.preventDefault(); void unlock(); }}>
+          <label className="tp-pw">
+            <span className="sr-only">Password</span>
+            <input
+              ref={pwBox}
+              type="password"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              placeholder="Password"
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+            />
+          </label>
+          <button type="submit" className="pill solid big wide" disabled={!pw.trim()}>Unlock</button>
+        </form>
       )}
-      {err && <p className="small" style={{ color: 'var(--bad)', margin: 0 }}>{err}</p>}
+      {err && <p className="small" style={{ color: 'var(--bad)', margin: 0 }} role="alert">{err}</p>}
+      {busy == null && (fileWay ? (
+        <div className="stack gap-2">
+          <p className="small" style={{ margin: 0 }}>Or load the study page (index.html) straight from this device.</p>
+          <input ref={input} type="file" accept=".html,.htm,text/html" hidden onChange={(e) => void pick(e.target.files?.[0])} />
+          <button type="button" className="pill wide" onClick={() => input.current?.click()}>Choose the study file</button>
+        </div>
+      ) : (
+        <button type="button" className="tp-more" onClick={() => setFileWay(true)}>Have the study file instead?</button>
+      ))}
       <p className="small" style={{ margin: 0 }}>Letters, Tones and Tips work without it.</p>
     </section>
   );

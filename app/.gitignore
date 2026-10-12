@@ -2,3 +2,6 @@ node_modules
 dist
 dev-dist
 *.local
+
+# the locked Tapes pack (scripts/tapes-seal.ts): never committed
+private

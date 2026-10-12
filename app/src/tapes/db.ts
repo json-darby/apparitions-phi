@@ -2,6 +2,7 @@
 // so loading or removing a study file never touches the learner's progress.
 
 import { dataUrlToBlob, parsePack, type Pack } from './pack';
+import { SEALED_PATH, unseal } from './sealed';
 
 const DB_NAME = 'phi-tapes';
 const KV = 'kv';
@@ -76,18 +77,13 @@ export function cachedPack(): Pack | null | undefined {
   return packCache;
 }
 
-/** Read a study file and keep it on this device. `onProgress` gets 0..1. */
-export async function importPack(file: File, onProgress: (f: number) => void): Promise<Pack> {
-  onProgress(0.02);
-  const html = await file.text();
-  onProgress(0.08);
-  const { pack, clips } = parsePack(html);
+/** Keep a pack and its clips on this device. `onProgress` gets from..1. */
+async function store(pack: Pack, clips: { key: string; blob: () => Blob }[], onProgress: (f: number) => void, from: number): Promise<Pack> {
   await clear(CLIPS);
   const BATCH = 60;
   for (let i = 0; i < clips.length; i += BATCH) {
-    const batch = clips.slice(i, i + BATCH).map((c) => [c.key, dataUrlToBlob(c.dataUrl)] as [string, unknown]);
-    await putMany(CLIPS, batch);
-    onProgress(0.08 + 0.9 * Math.min(1, (i + BATCH) / Math.max(1, clips.length)));
+    await putMany(CLIPS, clips.slice(i, i + BATCH).map((c) => [c.key, c.blob()] as [string, unknown]));
+    onProgress(from + (0.99 - from) * Math.min(1, (i + BATCH) / Math.max(1, clips.length)));
     // let the screen draw the progress
     await new Promise((r) => setTimeout(r, 0));
   }
@@ -102,6 +98,54 @@ export async function importPack(file: File, onProgress: (f: number) => void): P
   }
   onProgress(1);
   return pack;
+}
+
+/** Read a study file chosen from this device and keep it. `onProgress` gets 0..1. */
+export async function importPack(file: File, onProgress: (f: number) => void): Promise<Pack> {
+  onProgress(0.02);
+  const html = await file.text();
+  onProgress(0.08);
+  const { pack, clips } = parsePack(html);
+  return store(pack, clips.map((c) => ({ key: c.key, blob: () => dataUrlToBlob(c.dataUrl) })), onProgress, 0.08);
+}
+
+/** Download the locked pack from the app's own site, open it with the password, keep it. */
+let sealedCache: ArrayBuffer | null = null;
+
+export async function unlockPack(password: string, onProgress: (f: number) => void): Promise<Pack> {
+  onProgress(0.01);
+  // a mistyped password is tried again against the same download, not a new one
+  const buf = sealedCache ?? (await download(onProgress));
+  sealedCache = buf;
+  onProgress(0.76);
+  const opened = await unseal(buf, password);
+  sealedCache = null;
+  onProgress(0.8);
+  return store(opened.pack, opened.clips.map((c) => ({ key: c.key, blob: () => c.blob })), onProgress, 0.8);
+}
+
+async function download(onProgress: (f: number) => void): Promise<ArrayBuffer> {
+  const res = await fetch(`${import.meta.env.BASE_URL ?? '/'}${SEALED_PATH}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`download ${res.status}`);
+  const total = Number(res.headers.get('content-length')) || 0;
+  let buf: ArrayBuffer;
+  if (res.body && total) {
+    const reader = res.body.getReader();
+    const out = new Uint8Array(total);
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (got + value.length > out.length) throw new Error('download size');
+      out.set(value, got);
+      got += value.length;
+      onProgress(0.01 + 0.74 * (got / total));
+    }
+    buf = out.buffer.slice(0, got);
+  } else {
+    buf = await res.arrayBuffer();
+  }
+  return buf;
 }
 
 /** Remove the study file and its clips from this device (your Tapes progress stays). */

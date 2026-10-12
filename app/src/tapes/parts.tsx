@@ -53,7 +53,7 @@ export function stopTapes() {
   }
 }
 
-/** The Pimsleur speaker's clip for unit item "n.i". */
+/** The course speaker's clip for unit item "n.i". */
 export async function playClip(key: string): Promise<boolean> {
   stopTapes();
   const url = await clipUrl(key);

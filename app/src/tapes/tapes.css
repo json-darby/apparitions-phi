@@ -142,3 +142,21 @@ a.tp-item-main:hover .tp-th, button.tp-item-main:hover .tp-th { color: #fff; }
   .tp-th { font-size: 26px; }
   .tp-letters { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
 }
+.tp-pw input {
+  width: 100%; box-sizing: border-box; height: 52px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--rule-strong); background: var(--bg); color: var(--fg); font: 500 17px var(--font);
+}
+.tp-pw input:focus { outline: none; border-color: var(--fg); }
+
+/* quick navigation: every unit as a number */
+.tp-jump-wrap { margin-bottom: 18px; }
+.tp-jump { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 600px) { .tp-jump { grid-template-columns: repeat(10, minmax(0, 1fr)); } }
+.tp-jump-n {
+  position: relative; height: 44px; border-radius: var(--radius-opt); border: 1px solid var(--rule); background: var(--bg-2);
+  color: var(--fg); font: 600 15px var(--font); cursor: pointer;
+}
+.tp-jump-n:hover { border-color: var(--rule-strong); }
+.tp-jump-n.heard { color: var(--fg-2); }
+.tp-jump-n.heard::after { content: ''; position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+.tp-jump-n.on { background: var(--fg); color: #050505; border-color: var(--fg); }

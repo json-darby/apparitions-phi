@@ -1,4 +1,4 @@
-// The Tapes: a companion to the Pimsleur course. None of its material ships with
+// The Tapes: a companion to an audio course. None of its material ships with
 // the app: the learner loads their own study file (a page that holds the unit
 // phrases, notes, reading lessons and the speakers' clips), and it is kept on
 // that device only. This file reads that page into plain data.
@@ -55,12 +55,18 @@ export interface RawClip {
 
 export class PackError extends Error {}
 
+// The course is never named in the app: its name in the study notes becomes "the course".
+const COURSE = new RegExp(['P', 'i', 'm', 's', 'l', 'e', 'u', 'r'].join(''), 'g');
+export function unnamed(s: string): string {
+  return s.replace(COURSE, 'the course').replace(/(^|"|[.!?:]\s+)the course/g, (_m, p: string) => `${p}The course`);
+}
+
 function jsonAfter(text: string, marker: string, end: string): unknown {
   const a = text.indexOf(marker);
   if (a < 0) throw new PackError('missing');
   const b = text.indexOf(end, a + marker.length);
   if (b < 0) throw new PackError('missing');
-  const body = text.slice(a + marker.length, b).trim().replace(/;$/, '');
+  const body = unnamed(text.slice(a + marker.length, b).trim().replace(/;$/, ''));
   try {
     return JSON.parse(body);
   } catch {

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link, navigate, useRoute } from '../app/router';
 import { Label, ListHead, Screen, Seg, Toggle, TopBar } from '../ui/kit';
 import { LoadPack } from './Tapes';
+import { JumpButton } from './UnitJump';
 import { plainMeaning, thaiJoined, unitNumbers, unitTitle, type UnitItem } from './pack';
 import { NoteText, Phrase, PlayButton, SayButton, ToneKey, WHO_LABEL, WhyList, stopTapes, useTapes } from './parts';
 import './tapes.css';
@@ -23,6 +24,11 @@ export default function TapesUnit({ params }: { params: Record<string, string> }
     if (pack && state && state.lastUnit !== n) update({ lastUnit: n });
   }, [pack, n, state?.lastUnit]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // another unit opens at its top (a search result scrolls to its phrase below)
+  useEffect(() => {
+    if (at == null) window.scrollTo(0, 0);
+  }, [n]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // a search result: bring that phrase into view
   useEffect(() => {
     if (at == null || !pack) return;
@@ -33,9 +39,10 @@ export default function TapesUnit({ params }: { params: Record<string, string> }
 
   useEffect(() => () => stopTapes(), []);
 
-  const top = <TopBar mid={`Unit ${n}`} parent="/tapes" />;
-  if (pack === undefined || !state) return <Screen top={top} narrow><p className="small">Opening…</p></Screen>;
-  if (pack === null) return <Screen top={top} narrow className="tapes"><LoadPack /></Screen>;
+  const bare = <TopBar mid={`Unit ${n}`} parent="/tapes" />;
+  if (pack === undefined || !state) return <Screen top={bare} narrow><p className="small">Opening…</p></Screen>;
+  if (pack === null) return <Screen top={bare} narrow className="tapes"><LoadPack /></Screen>;
+  const top = <TopBar mid={`Unit ${n}`} parent="/tapes" right={<JumpButton nums={unitNumbers(pack)} heard={state.heard} current={n} />} />;
 
   const items = pack.units[String(n)];
   const nums = unitNumbers(pack);
