@@ -1,0 +1,5 @@
+/* the Extras shelf: one block per tool, a title and a sentence */
+.extra-row { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; border-top: 1px solid var(--rule); color: var(--fg); }
+.extra-row:hover .h-s { color: #fff; }
+.extra-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.extra-about { margin: 0; }

@@ -10,6 +10,7 @@ import { AudioSound, dropOldAudioCaches } from '../audio/AudioSound';
 import { defaultSettings, type Settings } from '../core/settings';
 import { localDate } from '../core/dates';
 import { SoundLayer } from '../audio/SoundLayer';
+import { EXTRAS } from '../extras/registry';
 import { AppProvider, useApp, useBlockTimer, useStoreVersion } from './context';
 import { useDevice } from './device';
 import { Link, match, navigate, useRoute } from './router';
@@ -100,9 +101,14 @@ function Shell() {
         <RowTearWipe routeKey={route.path}>
           <Suspense fallback={<div className="boot label">Loading</div>}>
             {Screen ? (
-              <Timed block={found!.screen.block} key={`${route.path}?${route.query.toString()}`}>
-                <Screen params={found!.params} />
-              </Timed>
+              found!.screen.extra ? (
+                // Extras sit outside the course: no time counts toward the day
+                <Screen key={`${route.path}?${route.query.toString()}`} params={found!.params} />
+              ) : (
+                <Timed block={found!.screen.block} key={`${route.path}?${route.query.toString()}`}>
+                  <Screen params={found!.params} />
+                </Timed>
+              )
             ) : (
               <NotFound />
             )}
@@ -166,6 +172,10 @@ function Rail({ path }: { path: string }) {
           <span className="small thai" lang="th" style={{ display: 'block' }}>{SCHOOL.thai}</span>
         </span>
       </Link>
+      <div className="rail-section label">Extras</div>
+      {EXTRAS.map((x) => (
+        <Link key={x.to} to={x.to} aria-current={path === x.to || path.startsWith(`${x.to}/`) ? 'page' : undefined}>{x.title}</Link>
+      ))}
       <div className="rail-foot stack gap-1">
         <Link to="/settings" aria-current={cur('/settings')}>Settings</Link>
         <FullscreenButton wide />

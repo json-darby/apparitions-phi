@@ -62,6 +62,7 @@ export default function Library() {
         <h1 className="h-page">Library</h1>
       </div>
       <Row to="/primer" right="Tones, romanisation, endings">How Thai works</Row>
+      <Row to="/extras" right="Outside the course · The Tapes">Extras</Row>
       <div className="lib-tabs" style={{ marginTop: 16 }}>
         <Seg label="Library section" value={tab} onChange={setTab} options={TABS} />
       </div>

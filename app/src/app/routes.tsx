@@ -7,7 +7,7 @@ type Screen = LazyExoticComponent<ComponentType<{ params: Record<string, string>
 
 const L = (f: () => Promise<{ default: ComponentType<any> }>) => lazy(f) as Screen;
 
-export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'none' }[] = [
+export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'none'; extra?: true }[] = [
   { path: '/', screen: L(() => import('../screens/Today')) },
   { path: '/welcome', screen: L(() => import('../screens/Welcome')), chrome: 'none' },
   { path: '/primer', screen: L(() => import('../primer/Primer')), chrome: 'none' },
@@ -49,6 +49,15 @@ export const ROUTES: { path: string; screen: Screen; block?: string; chrome?: 'n
   { path: '/school/section/:id', screen: L(() => import('../school/SchoolSection')), block: 'school' },
   { path: '/school/lesson', screen: L(() => import('../school/SchoolLesson')), block: 'school' },
   { path: '/school/custom', screen: L(() => import('../school/SchoolCustom')), block: 'school' },
+
+  // Extras: beside the course, not part of it (extras/registry.ts lists them)
+  { path: '/extras', screen: L(() => import('../extras/Extras')), extra: true },
+  // The Tapes (Pimsleur companion; the material is the learner's own file)
+  { path: '/tapes', screen: L(() => import('../tapes/Tapes')), extra: true },
+  { path: '/tapes/unit/:n', screen: L(() => import('../tapes/TapesUnit')), extra: true },
+  { path: '/tapes/review', screen: L(() => import('../tapes/TapesReview')), extra: true },
+  { path: '/tapes/reading/:n', screen: L(() => import('../tapes/TapesReading')), extra: true },
+  { path: '/tapes/tone-drill', screen: L(() => import('../tapes/TapesReading').then((m) => ({ default: m.ToneDrill }))), extra: true },
 
   // Animations
   { path: '/anim', screen: L(() => import('../anim/Catalogue')) },
